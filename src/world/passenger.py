@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from .enums import PassengerState, LoyaltyLevel, Gender, DocumentType
+from ..enums.world_enums import PassengerState, LoyaltyLevel, Gender, DocumentType
 
 
 @dataclass(slots=True)
