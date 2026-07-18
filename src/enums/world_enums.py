@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 
 # Passengers
 
@@ -6,18 +6,25 @@ from enum import Enum
 class DocumentType(Enum):
     DNI = "Dni"
     PASSPORT = "Passport"
+    ID_CARD = "Id_card"
+    INE = "Ine"
+    AADHAAR = "Aadhaar"
+    RG = "Rg"
+    CEDULA = "Cédula"
 
 
 class PassengerState(Enum):
-    CREATED = "Created"
     AT_HOME = "At Home"
     GOING_TO_AIRPORT = "Going to Airport"
+    AT_AIRPORT = "At Airport"
     CHECK_IN = "Check In"
-    SECURITY = "Secutiry"
+    AT_SECURITY = "At Security"
     WAITING_GATE = "Waiting Gate"
     BOARDING = "Boarding"
     ON_FLIGHT = "On Flight"
     ARRIVED = "Arrived"
+    AT_DESTINATION_AIRPORT = "At Destination Airport"
+    EXITED_AIRPORT = "Exited Airport"
 
 
 class LoyaltyLevel(Enum):
@@ -32,5 +39,18 @@ class Gender(Enum):
     FEMALE = "F"
 
 
-class FlightStates(Enum):
-    pass
+class FlightStatus(Enum):
+    SCHEDULED = "Scheduled"
+    BOARDING = "Boarding"
+    DEPARTED = "Departed"
+    LANDED = "Landed"
+    CANCELLED = "Cancelled"
+
+
+class FlightMilestone(Enum):
+    CHECKIN_OPEN = auto()
+    CHECKIN_CLOSE = auto()
+    BOARDING_START = auto()
+    DOORS_CLOSED = auto()
+    TAKE_OFF = auto()
+    LANDED = auto()
