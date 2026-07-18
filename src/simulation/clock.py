@@ -6,5 +6,10 @@ from datetime import datetime, timedelta
 class SimulationClock:
     current_time: datetime
 
-    def advance_time(self, delta: timedelta):
+    def advance(self, delta: timedelta):
         self.current_time += delta
+
+    def advance_to(self, new_time: datetime):
+        if new_time < self.current_time:
+            raise ValueError("Cannot advance to a time in the past.")
+        self.current_time = new_time

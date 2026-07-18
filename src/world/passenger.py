@@ -4,6 +4,8 @@ from uuid import UUID, uuid4
 
 from ..enums.world_enums import PassengerState, LoyaltyLevel, Gender, DocumentType
 
+from .gate import Gate
+
 
 @dataclass(slots=True)
 class Passenger:
@@ -30,9 +32,17 @@ class Passenger:
     travel_experience: int = 3
 
     # Simulation State
-    state: PassengerState = field(default=PassengerState.CREATED)
+    state: PassengerState = field(default=PassengerState.AT_HOME)
     current_airport: str = None
     current_flight: str = None
-    current_gate: str = None
+    current_gate: Gate | None = None
     seat_number: str = None
     boarding_time: datetime | None = None
+    checked_in: bool = False
+    boarded: bool = False
+
+    @property
+    def handler(self):
+        from ..simulation.handlers.passenger_handler import passenger_handler
+
+        return passenger_handler

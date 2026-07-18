@@ -1,0 +1,70 @@
+{
+  "countries_config": {
+    "United States": {
+      "weight": 0.2,
+      "faker_locale": "en_US",
+      "phone_prefix": "+1",
+      "doc_type": "Passport"
+    },
+    "China": {
+      "weight": 0.15,
+      "faker_locale": "zh_CN",
+      "phone_prefix": "+86",
+      "doc_type": "ID Card"
+    },
+    "United Kingdom": {
+      "weight": 0.12,
+      "faker_locale": "en_GB",
+      "phone_prefix": "+44",
+      "doc_type": "Passport"
+    },
+    "Spain": {
+      "weight": 0.1,
+      "faker_locale": "es_ES",
+      "phone_prefix": "+34",
+      "doc_type": "DNI"
+    },
+    "Mexico": {
+      "weight": 0.08,
+      "faker_locale": "es_MX",
+      "phone_prefix": "+52",
+      "doc_type": "INE"
+    },
+    "Germany": {
+      "weight": 0.08,
+      "faker_locale": "de_DE",
+      "phone_prefix": "+49",
+      "doc_type": "ID Card"
+    },
+    "India": {
+      "weight": 0.07,
+      "faker_locale": "en_IN",
+      "phone_prefix": "+91",
+      "doc_type": "Aadhaar"
+    },
+    "France": {
+      "weight": 0.07,
+      "faker_locale": "fr_FR",
+      "phone_prefix": "+33",
+      "doc_type": "ID Card"
+    },
+    "Brazil": {
+      "weight": 0.05,
+      "faker_locale": "pt_BR",
+      "phone_prefix": "+55",
+      "doc_type": "RG"
+    },
+    "Japan": {
+      "weight": 0.04,
+      "faker_locale": "ja_JP",
+      "phone_prefix": "+81",
+      "doc_type": "Passport"
+    },
+    "Colombia": {
+      "weight": 0.04,
+      "faker_locale": "es_CO",
+      "phone_prefix": "+57",
+      "doc_type": "Cédula"
+    }
+  }
+}
