@@ -20,11 +20,6 @@ class PassengerHandler:
         handler_name = self._handlers.get(event.event_type)
         if handler_name:
             getattr(self, handler_name)(event)
-        p = event.entity
-        print(
-            f"[{event.event_time}] [PASSENGER] {event.event_type.value} → "
-            f"{p.first_name} {p.last_name} is now {p.state.value}"
-        )
 
     def _handle_leave_home(self, event):
         event.entity.state = PassengerState.GOING_TO_AIRPORT
@@ -34,7 +29,7 @@ class PassengerHandler:
         flight = event.payload.get("flight")
         passenger.state = PassengerState.AT_AIRPORT
         if flight:
-            passenger.current_airport = flight.origin_airport.iata_code
+            passenger.current_airport = flight.origin_airport
 
     def _handle_checkin_completed(self, event):
         passenger = event.entity
@@ -42,15 +37,20 @@ class PassengerHandler:
         passenger.state = PassengerState.AT_SECURITY
 
     def _handle_security_completed(self, event):
-        event.entity.state = PassengerState.WAITING_GATE
+        passenger = event.entity
+        flight = event.payload.get("flight")
+        passenger.current_gate = flight.gate
+        passenger.state = PassengerState.WAITING_GATE
 
     def _handle_boarding_started(self, event):
-        event.entity.state = PassengerState.BOARDING
+        if event.entity.state == PassengerState.WAITING_GATE:
+            event.entity.state = PassengerState.BOARDING
 
     def _handle_passenger_boarded(self, event):
         passenger = event.entity
         passenger.state = PassengerState.ON_FLIGHT
         passenger.boarded = True
+        passenger.current_gate = None
 
     def _handle_aircraft_take_off(self, event):
         event.entity.state = PassengerState.ON_FLIGHT
@@ -66,7 +66,11 @@ class PassengerHandler:
         event.entity.state = PassengerState.AT_DESTINATION_AIRPORT
 
     def _handle_exit_airport(self, event):
-        event.entity.state = PassengerState.EXITED_AIRPORT
+        passenger = event.entity
+        passenger.state = PassengerState.EXITED_AIRPORT
+        if passenger.current_flight:
+            passenger.last_flight = passenger.current_flight
+        passenger.current_flight = None
 
 
 passenger_handler = PassengerHandler()

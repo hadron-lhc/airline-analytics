@@ -54,3 +54,14 @@ class FlightMilestone(Enum):
     DOORS_CLOSED = auto()
     TAKE_OFF = auto()
     LANDED = auto()
+
+
+class FlightFullError(Exception):
+    pass
+
+
+class SeatClass(Enum):
+    ECONOMY = "Economy"
+    PREMIUM_ECONOMY = "Premium Economy"
+    BUSINESS = "Business"
+    FIRST = "First"

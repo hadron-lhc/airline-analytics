@@ -59,7 +59,11 @@ def generate_passenger_journey(passenger, flight):
     """
     "Si este pasajero viaja en este vuelo, ¿qué eventos deberían ocurrir?"
     """
+    passenger.last_flight = passenger.current_flight
     passenger.current_flight = flight.flight_number
+    passenger.flight_history.append(flight.flight_number)
+    flight.add_passenger(passenger)
+    passenger.seat = flight.assign_seat(passenger)
 
     travel_plan = [
         EventType.LEAVE_HOME,
@@ -112,9 +116,7 @@ if __name__ == "__main__":
     )
     flight = Flight(
         flight_number="AR130",
-        origin_airport=Airport(
-            iata_code="EZE", name="Aeropuerto de Ezeiza", gates=[]
-        ),
+        origin_airport=Airport(iata_code="EZE", name="Aeropuerto de Ezeiza", gates=[]),
         destination_airport=Airport(
             iata_code="MIA", name="Aeropuerto Internacional de Miami", gates=[]
         ),

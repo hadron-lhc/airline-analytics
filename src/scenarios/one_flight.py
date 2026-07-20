@@ -4,17 +4,22 @@ from ..simulation.generators.flight_factory import create_random_flight
 from ..simulation.generators.passenger_factory import generate_passengers
 from ..simulation.engine import SimulationEngine
 from ..simulation.clock import SimulationClock
+from ..simulation.logger import SimulationLogger
 from datetime import datetime
 
 
 def show_passengers(passengers):
     print("\n" + "=" * 60)
-    print(f"{'Pasajero':<25} {'Estado':<20} {'Checked In':<12} {'Boarded':<10}")
+    print(
+        f"{'Pasajero':<25} {'Estado':<20} {'Gate':<10} {'Checked In':<12} {'Boarded':<10}"
+    )
     print("=" * 60)
     for p in passengers:
+        gate_str = p.current_gate.gate_code if p.current_gate else "None"
         print(
             f"{p.first_name + ' ' + p.last_name:<25} "
             f"{p.state.value:<20} "
+            f"{gate_str:<10} "
             f"{'Yes' if p.checked_in else 'No':<12} "
             f"{'Yes' if p.boarded else 'No':<10}"
         )
@@ -34,7 +39,8 @@ def main():
     all_events.sort(key=lambda e: e.event_time)
 
     engine = SimulationEngine(
-        clock=SimulationClock(current_time=datetime(2026, 7, 13, 0, 0, 0))
+        clock=SimulationClock(current_time=datetime(2026, 7, 13, 0, 0, 0)),
+        logger=SimulationLogger(),
     )
     engine.load_events(all_events)
     engine.run()
