@@ -49,9 +49,7 @@ def main():
 
     flight_0 = Flight(
         flight_number="AR130",
-        origin_airport=Airport(
-            iata_code="EZE", name="Aeropuerto de Ezeiza", gates=[]
-        ),
+        origin_airport=Airport(iata_code="EZE", name="Aeropuerto de Ezeiza", gates=[]),
         destination_airport=Airport(
             iata_code="MIA", name="Aeropuerto Internacional de Miami", gates=[]
         ),

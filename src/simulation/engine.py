@@ -2,6 +2,7 @@ from datetime import datetime
 
 from .clock import SimulationClock
 from .event import SimulationEvent
+from .logger import SimulationLogger
 
 from dataclasses import dataclass, field
 
@@ -10,6 +11,7 @@ from dataclasses import dataclass, field
 class SimulationEngine:
     clock: SimulationClock = field(default_factory=lambda: SimulationClock(datetime.now()))
     events: list[SimulationEvent] = field(default_factory=list)
+    logger: SimulationLogger | None = None
 
     def add_event(self, event: SimulationEvent):
         self.events.append(event)
@@ -25,6 +27,10 @@ class SimulationEngine:
             delta = event.event_time - self.clock.current_time
             self.clock.advance(delta)
             self.dispatch(event)
+        if self.logger:
+            self.logger.show_summary()
 
     def dispatch(self, event: SimulationEvent):
         event.entity.handler.process(event)
+        if self.logger:
+            self.logger.log(event)
