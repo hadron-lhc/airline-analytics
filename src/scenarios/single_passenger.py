@@ -7,6 +7,7 @@ from ..world.gate import Gate
 from ..enums.world_enums import Gender, DocumentType
 
 from ..simulation.generators.passenger_journey import generate_passenger_journey
+from ..simulation.generators.booking_factory import generate_booking
 from ..simulation.engine import SimulationEngine
 from ..simulation.clock import SimulationClock
 
@@ -16,9 +17,22 @@ def show_summary(passenger):
     print(f"Passenger: {passenger.first_name} {passenger.last_name}")
     print(f"Final state: {passenger.state.value}")
     print(f"Current airport: {passenger.current_airport}")
-    print(f"Current flight: {passenger.current_flight}")
-    print(f"Boarded: {passenger.boarded}")
-    print(f"Checked in: {passenger.checked_in}")
+    current_flight = (
+        passenger.current_booking.flight.flight_number
+        if passenger.current_booking
+        else passenger.last_flight
+    )
+    print(f"Current flight: {current_flight}")
+    boarded = (
+        passenger.boarded
+        or (passenger.current_booking and passenger.current_booking.boarded)
+    )
+    checked_in = (
+        passenger.checked_in
+        or (passenger.current_booking and passenger.current_booking.checked_in)
+    )
+    print(f"Boarded: {boarded}")
+    print(f"Checked in: {checked_in}")
     print("=" * 50)
 
 
@@ -58,7 +72,8 @@ def main():
         gate=Gate(gate_code="A1"),
     )
 
-    events = generate_passenger_journey(passenger_0, flight_0)
+    booking = generate_booking(passenger_0, flight_0)
+    events = generate_passenger_journey(booking)
 
     engine = SimulationEngine(
         clock=SimulationClock(current_time=datetime(2026, 7, 13, 0, 0, 0)),

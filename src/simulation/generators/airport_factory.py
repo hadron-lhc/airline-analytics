@@ -76,11 +76,37 @@ _airport_instances: dict[str, Airport] = {}
 
 def get_or_create_airport(iata_code: str) -> Airport:
     if iata_code not in _airport_instances:
-        gates = [Gate(code) for code in AIRPORT_GATES.get(iata_code, [])]
+        gates_data = AIRPORT_GATES.get(iata_code)
+        if gates_data is None:
+            gates_data = [f"{chr(65 + i % 26)}{i // 26 + 1}" for i in range(random.randint(10, 20))]
+        gates = [Gate(code) for code in gates_data]
+        name = AIRPORTS.get(iata_code, f"Synthetic Airport {iata_code}")
         _airport_instances[iata_code] = Airport(
-            iata_code=iata_code, name=AIRPORTS[iata_code], gates=gates
+            iata_code=iata_code, name=name, gates=gates
         )
     return _airport_instances[iata_code]
+
+
+def generate_synthetic_airports(n: int) -> list[str]:
+    """Generate synthetic airport codes and register them. Returns list of IATA codes."""
+    codes = []
+    for i in range(1, n + 1):
+        code = f"X{i:02d}"
+        if code not in AIRPORTS:
+            AIRPORTS[code] = f"Synthetic Airport {i}"
+        codes.append(code)
+    return codes
+
+
+def generate_synthetic_routes(airport_codes: list[str], n: int) -> list[tuple[str, str, int]]:
+    """Generate random routes between a list of airport codes."""
+    routes = []
+    for _ in range(n):
+        origin = random.choice(airport_codes)
+        dest = random.choice([c for c in airport_codes if c != origin])
+        duration = random.randint(60, 660)
+        routes.append((origin, dest, duration))
+    return routes
 
 
 def create_random_airport(iata_code=None, gate=None) -> Airport:
