@@ -6,11 +6,12 @@ from ..enums.world_enums import (
     FlightStatus,
     FlightMilestone,
     FlightFullError,
-    SeatClass,
+    TravelClass,
 )
 from .airport import Airport
 from .gate import Gate
 from .passenger import Passenger
+from .booking import Booking
 from .seat import Seat, generate_seats
 
 
@@ -25,12 +26,12 @@ class Flight:
     status: FlightStatus = FlightStatus.SCHEDULED
 
     capacity: int = 200
-    passengers: list[Passenger] = field(default_factory=list)
+    bookings: list[Booking] = field(default_factory=list)
 
     milestones: dict[FlightMilestone, datetime] = field(init=False)
 
-    total_seats: dict[SeatClass, int] = field(
-        default_factory=lambda: {SeatClass.ECONOMY: 180}
+    total_seats: dict[TravelClass, int] = field(
+        default_factory=lambda: {TravelClass.ECONOMY: 180}
     )
     _seats: list[Seat] = field(default_factory=list, init=False)
     _available: set[str] = field(default_factory=set, init=False)  # seat_numbers libres
@@ -54,19 +55,16 @@ class Flight:
         self._seats = generate_seats(self.total_seats)
         self._available = {s.seat_number for s in self._seats}
 
-    def assign_seat(self, passenger, preferred_class=SeatClass.ECONOMY) -> Seat:
+    def assign_seat(self, passenger, preferred_class=TravelClass.ECONOMY) -> Seat:
         candidates = [
-            s for s in self._seats
+            s
+            for s in self._seats
             if s.seat_number in self._available and s.class_type == preferred_class
         ]
         if not candidates:
-            candidates = [
-                s for s in self._seats if s.seat_number in self._available
-            ]
+            candidates = [s for s in self._seats if s.seat_number in self._available]
         if not candidates:
-            raise FlightFullError(
-                f"No seats available on {self.flight_number}"
-            )
+            raise FlightFullError(f"No seats available on {self.flight_number}")
         seat = random.choice(candidates)
         self._available.remove(seat.seat_number)
         self._occupied[seat.seat_number] = passenger
@@ -75,15 +73,9 @@ class Flight:
     def get_milestone(self, milestone: FlightMilestone) -> datetime:
         return self.milestones[milestone]
 
-    def add_passenger(self, passenger):
-        if len(self.passengers) >= self.capacity:
+    def add_booking(self, booking: Booking):
+        if len(self.bookings) >= self.capacity:
             raise FlightFullError(
-                f"Flight {self.flight_number} is full ({len(self.passengers)}/{self.capacity})"
+                f"Flight {self.flight_number} is full ({len(self.bookings)}/{self.capacity})"
             )
-        self.passengers.append(passenger)
-
-    @property
-    def handler(self):
-        from ..simulation.handlers.flight_handler import flight_handler
-
-        return flight_handler
+        self.bookings.append(booking)

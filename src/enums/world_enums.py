@@ -60,8 +60,42 @@ class FlightFullError(Exception):
     pass
 
 
-class SeatClass(Enum):
+# BookingStatus, BoardingGroup, TravelClass
+
+
+class BookingStatus(Enum):
+    RESERVED = "Reserved"
+    CONFIRMED = "Confirmed"
+    CHECKED_IN = "Checked_in"
+    CANCELLED = "Cancelled"
+    NO_SHOW = "No_show"
+    COMPLETED = "Completed"
+
+
+class TravelClass(Enum):
     ECONOMY = "Economy"
     PREMIUM_ECONOMY = "Premium Economy"
     BUSINESS = "Business"
     FIRST = "First"
+
+
+class BoardingGroup(Enum):
+    PRIORITY = "Priority"
+    GROUP_1 = "Group_1"
+    GROUP_2 = "Group_2"
+    GROUP_3 = "Group_3"
+    GROUP_4 = "Group_4"
+    GROUP_5 = "Group_5"
+
+
+class CurrencyType(Enum):
+    USD = "U.S.Dollar"
+    EUR = "Euro"
+    JPY = "Japanese.Yen"
+    GBP = "British.Pound"
+    CNY = "Chinese.Yuan"
+    AUD = "Australian.Dollar"
+    CAD = "Canadian.Dollar"
+    CHF = "Swiss.Franc"
+    HKD = "Hong.Kong.Dollar"
+    SGD = "Singapure.Dollar"

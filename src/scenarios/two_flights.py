@@ -9,6 +9,7 @@ from ..simulation.generators.passenger_journey import generate_passenger_journey
 from ..simulation.generators.flight_journey import generate_flight_journey
 from ..simulation.generators.airport_factory import get_or_create_airport
 from ..simulation.generators.passenger_factory import generate_passengers
+from ..simulation.generators.booking_factory import generate_bookings
 from ..simulation.engine import SimulationEngine
 from ..simulation.clock import SimulationClock
 from ..simulation.logger import SimulationLogger
@@ -81,9 +82,10 @@ def main():
     all_events = []
     for flight in flights:
         passengers = generate_passengers(3)
-        all_events.extend(generate_flight_journey(flight, passengers))
-        for p in passengers:
-            all_events.extend(generate_passenger_journey(p, flight))
+        bookings = generate_bookings(passengers, [flight])
+        all_events.extend(generate_flight_journey(flight))
+        for booking in bookings:
+            all_events.extend(generate_passenger_journey(booking))
 
     all_events.sort(key=lambda e: e.event_time)
 

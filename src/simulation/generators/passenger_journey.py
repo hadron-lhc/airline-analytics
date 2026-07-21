@@ -10,17 +10,16 @@ from ..time_models import (
     simulate_trip_to_airport,
 )
 
-from ...world.passenger import Passenger
-from ...world.flight import Flight
-from ...world.airport import Airport
-from ...world.gate import Gate
-from ...enums.world_enums import Gender, DocumentType, FlightMilestone
+from ...world.booking import Booking
+from ...enums.world_enums import FlightMilestone
+
+from datetime import datetime
 
 
-from datetime import datetime, date
+def calculate_times(booking: Booking):
+    passenger = booking.passenger
+    flight = booking.flight
 
-
-def calculate_times(passenger, flight):
     travel_duration = simulate_trip_to_airport(passenger)
 
     arrival_airport = simulate_passenger_arrival(passenger, flight)
@@ -55,15 +54,11 @@ def calculate_times(passenger, flight):
     }
 
 
-def generate_passenger_journey(passenger, flight):
-    """
-    "Si este pasajero viaja en este vuelo, ¿qué eventos deberían ocurrir?"
-    """
-    passenger.last_flight = passenger.current_flight
-    passenger.current_flight = flight.flight_number
+def generate_passenger_journey(booking: Booking):
+    passenger = booking.passenger
+    flight = booking.flight
+
     passenger.flight_history.append(flight.flight_number)
-    flight.add_passenger(passenger)
-    passenger.seat = flight.assign_seat(passenger)
 
     travel_plan = [
         EventType.LEAVE_HOME,
@@ -78,7 +73,7 @@ def generate_passenger_journey(passenger, flight):
         EventType.EXIT_AIRPORT,
     ]
 
-    times = calculate_times(passenger, flight)
+    times = calculate_times(booking)
 
     events = []
 
@@ -102,7 +97,15 @@ def show_events(events):
 
 
 if __name__ == "__main__":
-    # Ejemplo de uso
+    from datetime import date
+    from ...world.passenger import Passenger
+    from ...world.flight import Flight
+    from ...world.airport import Airport
+    from ...world.gate import Gate
+    from ...world.booking import Booking
+    from ...enums.world_enums import Gender, DocumentType, BookingStatus, TravelClass, CurrencyType
+    from uuid import uuid4
+
     passenger = Passenger(
         first_name="Oliver",
         last_name="Simth",
@@ -124,6 +127,18 @@ if __name__ == "__main__":
         scheduled_arrival=datetime(2026, 7, 13, 21, 30, 0),
         gate=Gate(gate_code="A1"),
     )
-    events = generate_passenger_journey(passenger, flight)
+    seat = flight.assign_seat(passenger)
+    booking = Booking(
+        passenger=passenger,
+        flight=flight,
+        seat=seat,
+        booking_date=datetime.now(),
+        booking_status=BookingStatus.CONFIRMED,
+        travel_class=TravelClass.ECONOMY,
+        ticket_price=500.0,
+        currency=CurrencyType.USD,
+    )
+    passenger.current_booking = booking
+    events = generate_passenger_journey(booking)
 
     show_events(events)

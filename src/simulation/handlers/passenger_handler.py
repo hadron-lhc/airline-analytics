@@ -33,7 +33,8 @@ class PassengerHandler:
 
     def _handle_checkin_completed(self, event):
         passenger = event.entity
-        passenger.checked_in = True
+        if passenger.current_booking:
+            passenger.current_booking.checked_in = True
         passenger.state = PassengerState.AT_SECURITY
 
     def _handle_security_completed(self, event):
@@ -49,7 +50,8 @@ class PassengerHandler:
     def _handle_passenger_boarded(self, event):
         passenger = event.entity
         passenger.state = PassengerState.ON_FLIGHT
-        passenger.boarded = True
+        if passenger.current_booking:
+            passenger.current_booking.boarded = True
         passenger.current_gate = None
 
     def _handle_aircraft_take_off(self, event):
@@ -68,9 +70,11 @@ class PassengerHandler:
     def _handle_exit_airport(self, event):
         passenger = event.entity
         passenger.state = PassengerState.EXITED_AIRPORT
-        if passenger.current_flight:
-            passenger.last_flight = passenger.current_flight
-        passenger.current_flight = None
+        if passenger.current_booking:
+            passenger.last_flight = passenger.current_booking.flight.flight_number
+            passenger.checked_in = passenger.current_booking.checked_in
+            passenger.boarded = passenger.current_booking.boarded
+        passenger.current_booking = None
 
 
 passenger_handler = PassengerHandler()

@@ -1,16 +1,16 @@
 from dataclasses import dataclass
 
-from ..enums.world_enums import SeatClass
+from ..enums.world_enums import TravelClass
 
 
 @dataclass(slots=True)
 class Seat:
     seat_number: str
-    class_type: SeatClass
+    class_type: TravelClass
     ocuppied: bool = False
 
 
-def generate_seats(capacity_by_class: dict[SeatClass, int]) -> list[Seat]:
+def generate_seats(capacity_by_class: dict[TravelClass, int]) -> list[Seat]:
     seats = []
     for seat_class, count in capacity_by_class.items():
         for i in range(1, count + 1):

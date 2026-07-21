@@ -13,7 +13,12 @@ class SimulationLogger:
 
         if isinstance(entity, Passenger):
             gate_str = entity.current_gate.gate_code if entity.current_gate else "None"
-            seat_str = entity.seat.seat_number if entity.seat.seat_number else "None"
+            seat = (
+                entity.current_booking.seat
+                if entity.current_booking and entity.current_booking.seat
+                else None
+            )
+            seat_str = seat.seat_number if seat else "None"
             row = (
                 f"{time_str:<6} {event_name:<22} "
                 f"{entity.first_name + ' ' + entity.last_name:<22} "
