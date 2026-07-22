@@ -14,7 +14,6 @@ from ..world.flight import Flight
 class SimulationResult:
     world: SimulationWorld
     events: list[SimulationEvent]
-    duration: timedelta
 
     def to_event_dicts(self) -> list[dict]:
         result = []
@@ -45,6 +44,14 @@ class SimulationResult:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(self.to_event_dicts(), f, indent=2, ensure_ascii=False)
         return path
+
+    @property
+    def duration(self) -> timedelta:
+        if not self.events:
+            return timedelta(0)
+        inicio_simulacion = min(event.event_time for event in self.events)
+        fin_simulacion = max(event.event_time for event in self.events)
+        return fin_simulacion - inicio_simulacion
 
     @staticmethod
     def load_event_dicts(path: str) -> list[dict]:
