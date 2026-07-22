@@ -6,7 +6,9 @@ from ..simulation.event_factory import generate_events
 from ..simulation.engine import SimulationEngine
 from ..simulation.clock import SimulationClock
 
-from ..analysis.simulation_result import SimulationResult
+from ..simulation.result import SimulationResult
+
+from ..analysis.simulation_analyzer import SimulationAnalyzer
 
 
 def main():
@@ -15,10 +17,9 @@ def main():
     print("=" * 60)
 
     """
-        n_airports: int = 12,
-        n_flights: int = 5,
-        n_passengers: int = 500,
-        simulation_date: datetime | None = None,
+        n_airports: int,
+        n_flights: int,
+        n_passengers: int,
 
     """
 
@@ -67,18 +68,24 @@ World:
         events=engine.processed_events,
     )
 
+    analyzer = SimulationAnalyzer(result)
+
     print("=" * 60)
     print("SIMULATION FINISHED")
     print("=" * 60)
 
     print(
         f"""
-Passengers: {result.passenger_count()}
-Flights:    {result.flight_count()}
-Bookings:   {result.booking_count()}
+Passengers: {result.world.passenger_count()}
+Flights:    {result.world.flight_count()}
+Bookings:   {result.world.booking_count()}
 Events:     {len(result.events)}
 """
     )
+
+    print("\nFlight Load Factors:")
+    for flight, lf in analyzer.flight_load_factors.items():
+        print(f"  {flight}: {lf}%")
 
 
 if __name__ == "__main__":

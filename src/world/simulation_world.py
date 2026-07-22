@@ -25,6 +25,15 @@ class SimulationWorld:
     passengers: list[Passenger]
     bookings: list[Booking]
 
+    def passenger_count(self) -> int:
+        return len(self.passengers)
+
+    def flight_count(self) -> int:
+        return len(self.flights)
+
+    def booking_count(self) -> int:
+        return len(self.bookings)
+
     def statistics(self):
         today = date.today()
         prices = [b.ticket_price for b in self.bookings]
@@ -32,16 +41,12 @@ class SimulationWorld:
             len(f.bookings) / f.capacity * 100 for f in self.flights if f.capacity
         ]
         ages = [
-            (today - p.birth_date).days // 365
-            for p in self.passengers
-            if p.birth_date
+            (today - p.birth_date).days // 365 for p in self.passengers if p.birth_date
         ]
         origins = Counter(f.origin_airport.iata_code for f in self.flights)
         active = len(origins)
         classes = Counter(b.travel_class.value for b in self.bookings)
-        seats = Counter(
-            _seat_type(b.seat.seat_number) for b in self.bookings if b.seat
-        )
+        seats = Counter(_seat_type(b.seat.seat_number) for b in self.bookings if b.seat)
 
         print(f"  Flights:           {len(self.flights)}")
         print(f"  Passengers:        {len(self.passengers)}")

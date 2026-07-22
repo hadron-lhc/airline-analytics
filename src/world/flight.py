@@ -39,6 +39,14 @@ class Flight:
         default_factory=dict, init=False
     )  # seat_num -> passenger
 
+    @property
+    def passenger_count(self) -> int:
+        return len(self.bookings)
+
+    @property
+    def load_factor(self) -> float:
+        return self.passenger_count / self.capacity
+
     def __post_init__(self):
         self.milestones = {
             FlightMilestone.CHECKIN_OPEN: self.scheduled_departure - timedelta(hours=2),
