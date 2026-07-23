@@ -25,8 +25,8 @@ def main():
 
     world = generate_world(
         n_airports=12,
-        n_flights=20,
-        n_passengers=100,
+        n_flights=2,
+        n_passengers=150,
     )
 
     print(
