@@ -84,7 +84,7 @@ Events:     {len(result.events)}
     )
 
     print("\nFlight Load Factors:")
-    for flight, lf in analyzer.flight_load_factors.items():
+    for flight, lf in analyzer.flight_load_factors().items():
         print(f"  {flight}: {lf}%")
 
 
