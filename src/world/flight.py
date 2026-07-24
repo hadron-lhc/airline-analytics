@@ -47,6 +47,10 @@ class Flight:
     def load_factor(self) -> float:
         return self.passenger_count / self.capacity
 
+    @property
+    def airline_code(self) -> str:
+        return self.flight_number[:2]
+
     def __post_init__(self):
         self.milestones = {
             FlightMilestone.CHECKIN_OPEN: self.scheduled_departure - timedelta(hours=2),
