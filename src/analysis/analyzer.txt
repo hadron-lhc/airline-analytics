@@ -1,0 +1,8 @@
+- load_factor()
+- ratio_checkin_online()
+- seat_distribution()
+- travel_class_distribution()
+- seat_occupancy_by_class()
+- boarding_times()
+- revenue_by_airline()
+- 

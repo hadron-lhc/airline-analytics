@@ -25,7 +25,7 @@ class SimulationAnalyzer:
             rev[b.flight.flight_number] += b.ticket_price
         return dict(rev)
 
-    # ── Revenue Block ──────────────────────────────────────────────
+    # --- Revenue Block ---------------------------------------------
 
     def total_revenue(self) -> float:
         return sum(b.ticket_price for b in self.world.bookings)
@@ -69,39 +69,19 @@ class SimulationAnalyzer:
         rev = self._flight_revenues()
         return sorted(rev.items(), key=lambda x: x[1])[:n]
 
-    # ── Legacy stubs (to be implemented next) ──────────────────────
+    # --- Flight Block ------------------------------------------------------
 
-    def flight_load_factors(self):
+    def flight_load_factors(self) -> dict[str, float]:
         return {
             flight.flight_number: flight.load_factor for flight in self.world.flights
         }
 
-    def average_load_factor(self):
-        pass
+    def average_load_factor(self) -> float: ...
 
-    def passengers_by_country(self):
-        pass
+    def most_full_flights(self, n: int = 10) -> list[tuple[str, float]]: ...
 
-    def passengers_by_airport(self):
-        pass
+    def least_full_flights(self, n: int = 10) -> list[tuple[str, float]]: ...
 
-    def busiest_airports(self):
-        pass
+    def flight_count_by_airline(self) -> dict[str, int]: ...
 
-    def most_popular_routes(self):
-        pass
-
-    def average_passenger_age(self):
-        pass
-
-    def seat_distribution(self):
-        pass
-
-    def travel_class_distribution(self):
-        pass
-
-    def boarding_times(self):
-        pass
-
-    def checkin_statistics(self):
-        pass
+    def flight_count_by_airport(self) -> dict[str, int]: ...
