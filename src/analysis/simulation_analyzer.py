@@ -25,6 +25,12 @@ class SimulationAnalyzer:
             rev[b.flight.flight_number] += b.ticket_price
         return dict(rev)
 
+    def _load_factors(self):
+        load_factors = {}
+        for flight in self.world.flights:
+            load_factors[flight.flight_number] = flight.load_factor
+        return load_factors
+
     # --- Revenue Block ---------------------------------------------
 
     def total_revenue(self) -> float:
@@ -72,16 +78,29 @@ class SimulationAnalyzer:
     # --- Flight Block ------------------------------------------------------
 
     def flight_load_factors(self) -> dict[str, float]:
-        return {
-            flight.flight_number: flight.load_factor for flight in self.world.flights
-        }
+        load_factors = self._load_factors()
+        return load_factors
 
-    def average_load_factor(self) -> float: ...
+    def average_load_factor(self) -> float:
+        lfs = list(self._load_factors().values())
+        return sum(lfs) / len(lfs) if lfs else 0.0
 
-    def most_full_flights(self, n: int = 10) -> list[tuple[str, float]]: ...
+    def most_full_flights(self, n: int = 10) -> list[tuple[str, float]]:
+        return sorted(self._load_factors().items(), key=lambda x: x[1], reverse=True)[
+            :n
+        ]
 
-    def least_full_flights(self, n: int = 10) -> list[tuple[str, float]]: ...
+    def least_full_flights(self, n: int = 10) -> list[tuple[str, float]]:
+        return sorted(self._load_factors().items(), key=lambda x: x[1])[:n]
 
-    def flight_count_by_airline(self) -> dict[str, int]: ...
+    def flight_count_by_airline(self) -> dict[str, int]:
+        counts: dict[str, int] = defaultdict(int)
+        for f in self.world.flights:
+            counts[f.airline_code] += 1
+        return dict(counts)
 
-    def flight_count_by_airport(self) -> dict[str, int]: ...
+    def flight_count_by_airport(self) -> dict[str, int]:
+        counts: dict[str, int] = defaultdict(int)
+        for f in self.world.flights:
+            counts[f.origin_airport.iata_code] += 1
+        return dict(counts)
