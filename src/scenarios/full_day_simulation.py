@@ -87,6 +87,31 @@ Events:     {len(result.events)}
     for flight, lf in analyzer.flight_load_factors().items():
         print(f"  {flight}: {lf}%")
 
+    print()
+
+    print("Average Load Factors:")
+    print(analyzer.average_load_factor())
+
+    print()
+
+    print("Most full flight: ")
+    print(analyzer.most_full_flights())
+
+    print()
+
+    print("Least full flight: ")
+    print(analyzer.least_full_flights())
+
+    print()
+
+    print("Count by Airline: ")
+    print(analyzer.flight_count_by_airline())
+
+    print()
+
+    print("Count by Airport: ")
+    print(analyzer.flight_count_by_airport())
+
 
 if __name__ == "__main__":
     main()
