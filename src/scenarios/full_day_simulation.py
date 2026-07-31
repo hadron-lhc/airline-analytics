@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime
 
 from ..simulation.world_factory import generate_world
@@ -47,6 +48,8 @@ World:
 
     print(f"Generated events: {len(events)}")
 
+    initial_world = deepcopy(world)
+
     engine = SimulationEngine(
         clock=SimulationClock(
             current_time=datetime.now().replace(
@@ -66,6 +69,7 @@ World:
     result = SimulationResult(
         world=world,
         events=engine.processed_events,
+        initial_world=initial_world,
     )
 
     analyzer = SimulationAnalyzer(result)

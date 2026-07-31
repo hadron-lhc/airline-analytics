@@ -14,6 +14,7 @@ from ..world.flight import Flight
 class SimulationResult:
     world: SimulationWorld
     events: list[SimulationEvent]
+    initial_world: SimulationWorld | None = None
 
     def to_event_dicts(self) -> list[dict]:
         result = []
