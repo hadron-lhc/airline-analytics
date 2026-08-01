@@ -4,6 +4,7 @@ from ..simulation.world_factory import generate_world
 from ..simulation.runner import run_simulation
 from ..simulation.replay import SimulationReplay
 from ..analysis.simulation_analyzer import SimulationAnalyzer
+from ..render.console_renderer import ConsoleRenderer
 
 
 def main():
@@ -64,10 +65,41 @@ def main():
     print("=" * 66)
     midpoint = replay.start_time + (replay.end_time - replay.start_time) / 2
     replay.at(midpoint)
-    current = replay.current_event
-    print(f"  Target:  {midpoint}")
-    print(f"  Frame:   {replay.current_index} ({replay.progress:.0%})")
-    print(f"  Event:   {current.event_type.value} @ {current.event_time}")
+    s = replay.summary()
+    print(f"  Requested time:   {midpoint:%H:%M:%S}")
+    print(f"  Simulation time:  {s['current_time']:%H:%M:%S}")
+    print()
+    print("  Current state established by:")
+    if s["current_event"]:
+        print(f"    {s['current_event'].value.replace('_', ' ')} @ {s['event_time']:%H:%M}")
+    else:
+        print("    (initial world)")
+    if s["next_event"]:
+        print("  Next event:")
+        print(f"    {s['next_event'].value.replace('_', ' ')} @ {s['next_event_time']:%H:%M}")
+    else:
+        print("  Next event:      (fin)")
+    if s["idle"] is not None:
+        idle_min = int(s["idle"].total_seconds() // 60)
+        h, m = divmod(idle_min, 60)
+        idle = f"{h}h {m}m" if h else f"{m}m"
+        print(f"  Idle for:        {idle}")
+    print(f"  Event progress:  {s['event_progress']:.0%}")
+    print(f"  Timeline:        {s['time_progress']:.0%}")
+
+    print()
+    print("=" * 66)
+    print("  WORLD SUMMARY")
+    print("=" * 66)
+    replay.print_summary()
+
+    print()
+    print("=" * 66)
+    print("  AIRPORT RENDERER")
+    print("=" * 66)
+    renderer = ConsoleRenderer()
+    airport_code = world.flights[0].origin_airport.iata_code
+    print(renderer.render_airport(replay.current_world, airport_code, replay.current_time))
 
 
 if __name__ == "__main__":
