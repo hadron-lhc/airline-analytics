@@ -65,23 +65,43 @@ replay = SimulationReplay(result)
 |---|---|
 | `reset()` | Vuelve al inicio (mundo inicial). |
 | `has_next() -> bool` | `True` mientras queden eventos por reproducir. |
-| `step()` | Avanza un evento; actualiza el estado interno. |
-| `seek(index: int)` | Salta al frame `index`. Hacia atrás re-ejecuta desde el inicio. |
-| `at(time: datetime)` | Se posiciona en el último evento `<= time`. |
+| `step()` | Avanza un evento; deja el reloj en la hora de ese evento. |
+| `seek(index: int)` | Salta al frame `index`; deja el reloj en la hora del evento de ese índice (`index == 0` → inicio). Hacia atrás re-ejecuta desde el inicio. |
+| `at(time: datetime)` | Procesa todos los eventos con tiempo `<= time` (bisect_right) y fija el reloj exactamente en `time`. |
 
 ### Estado (properties)
 
 | Propiedad | Descripción |
 |---|---|
-| `current_index -> int` | Índice del siguiente evento a reproducir. |
+| `current_index -> int` | Cantidad de eventos procesados (= índice del próximo a reproducir). |
 | `current_world -> SimulationWorld` | El mundo tal como quedó en el instante actual. |
 | `current_event -> SimulationEvent \| None` | El último evento reproducido (`None` al inicio). |
 | `current_events -> list[SimulationEvent]` | Los eventos del estado actual (`events[:index]`). |
 | `current_result -> SimulationResult` | Envuelve `current_world` + `current_events` listo para el analyzer. |
+| `current_time -> datetime` | El reloj del replay en el instante actual. |
 | `frame_count -> int` | Cantidad total de eventos en la línea de tiempo. |
 | `start_time / end_time -> datetime` | Límites de la línea de tiempo. |
 | `timeline -> list[ReplayFrame]` | La línea de tiempo completa (cacheada). |
-| `progress -> float` | `current_index / frame_count` (0.0 a 1.0). |
+| `progress -> float` | Progreso de **eventos**: `current_index / frame_count` (0.0 a 1.0). |
+| `time_progress -> float` | Progreso de **tiempo**: `(current_time - start) / (end - start)`. Puede superar 1.0 si `at()` pide una hora posterior al último evento. |
+
+### Consultas de estado
+
+El replay **solo navega** y responde "¿cómo está el mundo ahora?". Las métricas y
+reglas de negocio viven en `SimulationAnalyzer`.
+
+| Método | Descripción |
+|---|---|
+| `world_statistics() -> dict` | Estado crudo del mundo: `time`, `passengers_by_state`, `flights_by_status`. No imprime. |
+| `summary() -> dict` | Resumen estructurado (datos puros): `current_time`, `current_event` (enum crudo) y `event_time`, `next_event` (enum crudo) y `next_event_time`, `idle` (`current_time - event_time`), `processed_events`, `total_events`, `event_progress`, `time_progress`, `passengers_by_state`. |
+| `print_summary(summary: dict \| None = None) -> None` | Solo formatea y muestra un resumen (`summary()` si no se pasa). Presentación; los datos nunca se transforman acá. |
+
+Progreso de **eventos** y progreso de **tiempo** son distintos: puede haber un
+80% del tiempo transcurrido con solo un 35% de los eventos procesados (largos
+períodos sin actividad). `print_summary()` los muestra por separado.
+
+Filosofía: **los datos permanecen puros; la presentación los embellece**. La GUI
+puede hacer `stats = replay.summary()` y actualizar su ventana sin parsear texto.
 
 `ReplayFrame` es un dataclass inmutable con `index`, `time`, `event_type`,
 `entity_kind` y `entity_id` (UUID del pasajero o `flight_number`).
@@ -114,7 +134,17 @@ world = replay.current_world         # estado del mundo a las 10:00
 # 4. La línea de tiempo para animaciones
 for frame in replay.timeline:
     print(frame.time, frame.event_type.value)
+
+# 5. Renderizar un aeropuerto en el instante actual (presentación aparte)
+from src.render.console_renderer import ConsoleRenderer
+
+renderer = ConsoleRenderer()
+print(renderer.render_airport(replay.current_world, "EZE", replay.current_time))
 ```
+
+`ConsoleRenderer` es la capa de presentación: recibe un `SimulationWorld`
+(p.ej. `replay.current_world`) y devuelve texto. No imprime, no analiza;
+solo embellece los datos puros.
 
 ## Demo
 
