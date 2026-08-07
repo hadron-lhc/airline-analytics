@@ -70,7 +70,9 @@ class ConsoleRenderer:
             sep,
         ]
         if flights:
-            lines.extend(f"{f.flight_number:<8}{_FLIGHT_LABELS[f.status]}" for f in flights)
+            lines.extend(
+                f"{f.flight_number:<8}{_FLIGHT_LABELS[f.status]}" for f in flights
+            )
         else:
             lines.append("(no flights)")
 
