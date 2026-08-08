@@ -56,6 +56,20 @@ class FlightMilestone(Enum):
     LANDED = auto()
 
 
+class TravelPurpose(Enum):
+    BUSINESS = "Business"
+    LEISURE = "Leisure"
+    FAMILY = "Family"
+    VISITING = "Visiting"
+
+
+class SeatPreference(Enum):
+    WINDOW = "Window"
+    AISLE = "Aisle"
+    TOGETHER = "Together"
+    ANY = "Any"
+
+
 class FlightFullError(Exception):
     pass
 

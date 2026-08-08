@@ -3,16 +3,63 @@
 ## Identity
 
 ──────────────
-
-passenger_id
-first_name
-last_name
-birth_date
-gender
-nationality
-document
-email
-phone
+Passenger
+│
+├── IDENTITY
+│ │
+│ ├── passenger_id
+│ ├── first_name
+│ ├── last_name
+│ ├── birth_date
+│ ├── gender
+│ ├── nationality
+│ ├── document_type
+│ └── document_number
+│
+├── PROFILE
+│ │
+│ ├── travel_purpose
+│ ├── travel_experience
+│ ├── loyalty_level
+│ ├── preferred_airline
+│ └── preferred_seat
+│
+├── BEHAVIORAL_TRAITS
+│ │
+│ ├── walking_speed
+│ ├── punctuality
+│ ├── patience
+│ ├── risk_tolerance
+│ ├── arrival_margin
+│ ├── online_checkin_probability
+│ └── baggage_probability
+│
+├── DYNAMIC_STATE
+│ │
+│ ├── state
+│ ├── current_airport
+│ ├── current_zone
+│ ├── current_gate
+│ ├── current_flight
+│ ├── checked_in
+│ ├── boarded
+│ └── seat_number
+│
+├── TEMPORAL_STATE
+│ │
+│ ├── stress_level
+│ ├── fatigue
+│ ├── time_deviation
+│ └── waiting_time
+│
+├── HISTORY
+│ │
+│ ├── flights_taken
+│ ├── flights_missed
+│ ├── checkins_completed
+│ ├── baggage_count
+│ └── total_travel_time
+│
 
 ---
 
