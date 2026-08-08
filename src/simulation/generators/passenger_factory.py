@@ -1,5 +1,9 @@
 from ...world.passenger import Passenger
-from ...enums.world_enums import Gender, DocumentType
+from ...enums.world_enums import (
+    Gender,
+    DocumentType,
+    TravelPurpose,
+)
 import json
 import random
 import os
@@ -62,6 +66,40 @@ def limpiar_texto(texto):
     ).lower()
 
 
+def generate_arrival_margin(travel_purpose: TravelPurpose) -> int:
+    """Genera un margen de llegada basado en el propósito del viaje."""
+
+    if travel_purpose == TravelPurpose.BUSINESS:
+        return random.choices(
+            population=[60, 70, 80, 90],
+            weights=[0.1, 0.4, 0.4, 0.1],
+            k=1,
+        )[0]
+
+    if travel_purpose == TravelPurpose.LEISURE:
+        return random.choices(
+            population=[150, 160, 170, 180, 190, 200, 210],
+            weights=[0.05, 0.1, 0.15, 0.2, 0.2, 0.2, 0.1],
+            k=1,
+        )[0]
+
+    if travel_purpose == TravelPurpose.FAMILY:
+        return random.choices(
+            population=[180, 190, 200, 210, 220, 230, 240],
+            weights=[0.05, 0.1, 0.15, 0.2, 0.2, 0.2, 0.1],
+            k=1,
+        )[0]
+
+    if travel_purpose == TravelPurpose.VISITING:
+        return random.choices(
+            population=[100, 110, 120, 130, 140, 150],
+            weights=[0.1, 0.15, 0.2, 0.2, 0.2, 0.15],
+            k=1,
+        )[0]
+
+    raise ValueError(f"Unsupported travel purpose: {travel_purpose}")
+
+
 def create_random_passenger() -> Passenger:
     # 1. Selección del país
     selected_country = random.choices(countries, weights=weights, k=1)[0]
@@ -94,6 +132,12 @@ def create_random_passenger() -> Passenger:
     num_local = "".join([str(random.randint(0, 9)) for _ in range(8)])
     phone_number = f"{config['phone_prefix']} {num_local}"
 
+    # 7. Motivo del viaje
+    travel_purpose = random.choice(list(TravelPurpose))
+
+    # 8. Arrival margin basado en el propósito del viaje
+    arrival_margin = generate_arrival_margin(travel_purpose)
+
     passenger = Passenger(
         first_name=first_name,
         last_name=last_name,
@@ -104,6 +148,8 @@ def create_random_passenger() -> Passenger:
         document_number=int(f"{str_fecha}{random_digits}"),
         email=email,
         phone=phone_number,
+        travel_purpose=travel_purpose,
+        arrival_margin=arrival_margin,
     )
 
     return passenger
@@ -118,8 +164,21 @@ def generate_passengers(n):
 
 
 def main():
-    pasajeros = generate_passengers(10)
-    print(pasajeros)
+    passengers = generate_passengers(10_000)
+
+    """ Analizar average margin por travel purpose """
+    margin_by_purpose = {}
+    for passenger in passengers:
+        if passenger.travel_purpose not in margin_by_purpose:
+            margin_by_purpose[passenger.travel_purpose] = []
+        margin_by_purpose[passenger.travel_purpose].append(passenger.arrival_margin)
+
+    print("Travel Purpose    Arrival Margin")
+    print("----------------------------------")
+
+    for purpose, margins in margin_by_purpose.items():
+        average_margin = sum(margins) / len(margins)
+        print(f"{purpose.value}       {average_margin:.2f} minutes")
 
 
 if __name__ == "__main__":

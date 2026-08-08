@@ -9,6 +9,9 @@ from ..enums.world_enums import (
     DocumentType,
     LoyaltyLevel,
     PassengerState,
+    TravelPurpose,
+    SeatPreference,
+    PassengerTraits,
 )
 from .gate import Gate
 
@@ -20,7 +23,7 @@ if TYPE_CHECKING:
 
 @dataclass(slots=True)
 class Passenger:
-    # ───────── Identity ─────────
+    # Identity
     passenger_id: UUID = field(default_factory=uuid4, init=False)
 
     first_name: str
@@ -31,25 +34,32 @@ class Passenger:
     nationality: str
 
     document_type: DocumentType
-    document_number: int
+    document_number: str
 
     email: str
     phone: str
 
-    # ───────── Travel Profile ─────────
+    # Profile
+
+    travel_purpose: TravelPurpose
+    traits: PassengerTraits
 
     loyalty_level: LoyaltyLevel = LoyaltyLevel.NONE
     preferred_airline: str | None = None
-    preferred_seat: str = "Window"
+    preferred_seat: SeatPreference = SeatPreference.WINDOW
 
+    # Behavioral Traits
+
+    walking_speed: float = 1.2
+    arrival_margin: int = 120
     online_checkin_probability: float = 0.5
     baggage_probability: float = 0.5
-
-    arrival_margin: int = 120
-    walking_speed: float = 1.2
     travel_experience: int = 3
+    punctuality: int = 0
+    patience: int = 0
+    risk_tolerance: int = 0
 
-    # ───────── Simulation State ─────────
+    # Simulation State
 
     state: PassengerState = PassengerState.AT_HOME
 
