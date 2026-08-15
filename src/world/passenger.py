@@ -11,8 +11,10 @@ from ..enums.world_enums import (
     PassengerState,
     TravelPurpose,
     SeatPreference,
-    PassengerTraits,
 )
+
+from .passenger_traits import PassengerTraits
+
 from .gate import Gate
 
 from typing import TYPE_CHECKING
@@ -48,13 +50,14 @@ class Passenger:
     preferred_airline: str | None = None
     preferred_seat: SeatPreference = SeatPreference.WINDOW
 
-    # Behavioral Traits
-
-    walking_speed: float = 1.2
-    arrival_margin: int = 120
     online_checkin_probability: float = 0.5
     baggage_probability: float = 0.5
-    travel_experience: int = 3
+
+    arrival_margin: int = 120
+    walking_speed: float = 1.2
+
+    # Behavioral Traits
+
     punctuality: int = 0
     patience: int = 0
     risk_tolerance: int = 0
@@ -75,3 +78,12 @@ class Passenger:
 
     checked_in: bool = False
     boarded: bool = False
+
+    @property
+    def age(self) -> int:
+        today = date.today()
+        return (
+            today.year
+            - self.birth_date.year
+            - ((today.month, today.day) < (self.birth_date.month, self.birth_date.day))
+        )

@@ -1,14 +1,31 @@
 from ...world.passenger import Passenger
+from ...world.passenger_traits import PassengerTraits
 from ...enums.world_enums import (
     Gender,
     DocumentType,
     TravelPurpose,
+)
+from .passenger_helpers.traits import (
+    generate_fitness,
+    generate_travel_experience,
+    generate_stress_resilience,
+)
+from .passenger_helpers.distributions import generate_distraction
+from .passenger_helpers.derived_behavior import (
+    generate_arrival_margin,
+    generate_walking_speed,
+    generate_online_checkin_probability,
+    generate_baggage_probability,
+    generate_loyalty_level,
 )
 import json
 import random
 import os
 import unicodedata
 from faker import Faker
+
+from datetime import date
+
 
 """
 Datos básicos de cada Passenger:
@@ -66,93 +83,148 @@ def limpiar_texto(texto):
     ).lower()
 
 
-def generate_arrival_margin(travel_purpose: TravelPurpose) -> int:
-    """Genera un margen de llegada basado en el propósito del viaje."""
-
-    if travel_purpose == TravelPurpose.BUSINESS:
-        return random.choices(
-            population=[60, 70, 80, 90],
-            weights=[0.1, 0.4, 0.4, 0.1],
-            k=1,
-        )[0]
-
-    if travel_purpose == TravelPurpose.LEISURE:
-        return random.choices(
-            population=[150, 160, 170, 180, 190, 200, 210],
-            weights=[0.05, 0.1, 0.15, 0.2, 0.2, 0.2, 0.1],
-            k=1,
-        )[0]
-
-    if travel_purpose == TravelPurpose.FAMILY:
-        return random.choices(
-            population=[180, 190, 200, 210, 220, 230, 240],
-            weights=[0.05, 0.1, 0.15, 0.2, 0.2, 0.2, 0.1],
-            k=1,
-        )[0]
-
-    if travel_purpose == TravelPurpose.VISITING:
-        return random.choices(
-            population=[100, 110, 120, 130, 140, 150],
-            weights=[0.1, 0.15, 0.2, 0.2, 0.2, 0.15],
-            k=1,
-        )[0]
-
-    raise ValueError(f"Unsupported travel purpose: {travel_purpose}")
+def generate_travel_purpose() -> TravelPurpose:
+    return random.choices(
+        population=[
+            TravelPurpose.BUSINESS,
+            TravelPurpose.LEISURE,
+            TravelPurpose.FAMILY,
+            TravelPurpose.VISITING,
+        ],
+        weights=[
+            0.20,
+            0.40,
+            0.20,
+            0.20,
+        ],
+        k=1,
+    )[0]
 
 
 def create_random_passenger() -> Passenger:
-    # 1. Selección del país
-    selected_country = random.choices(countries, weights=weights, k=1)[0]
+    # Identity
+    selected_country = random.choices(
+        countries,
+        weights=weights,
+        k=1,
+    )[0]
+
     config = COUNTRIES_DATA[selected_country]
     local_faker = fakers[config["faker_locale"]]
 
-    # 2. Género y Nombre
-    gender = random.choice(["Male", "Female"])
-    if gender == "Male":
+    gender = random.choice([Gender.MALE, Gender.FEMALE])
+
+    if gender == Gender.MALE:
         first_name = local_faker.first_name_male()
         last_name = local_faker.last_name_male()
     else:
         first_name = local_faker.first_name_female()
         last_name = local_faker.last_name_female()
 
-    # 3. Edad y Fecha de Nacimiento
-    birth_date = local_faker.date_of_birth(minimum_age=18, maximum_age=85)
+    birth_date = local_faker.date_of_birth(
+        minimum_age=18,
+        maximum_age=85,
+    )
 
-    # 4. Tipo y Número de Documento (basado en nacimiento y país)
+    age = (date.today() - birth_date).days // 365
+
+    travel_purpose = generate_travel_purpose()
+
+    travel_experience = generate_travel_experience(
+        age,
+        travel_purpose,
+    )
+
+    # Stable traits
+
+    fitness = generate_fitness(age)
+
+    experience = generate_travel_experience(
+        age,
+        travel_purpose,
+    )
+
+    stress_resilience = generate_stress_resilience(
+        age,
+        fitness,
+        experience,
+    )
+
+    distraction = generate_distraction(
+        travel_purpose,
+        experience,
+    )
+
+    traits = PassengerTraits(
+        fitness=fitness,
+        stress_resilience=stress_resilience,
+        distraction_proneness=distraction,
+        travel_experience=experience,
+    )
+
+    # Derived behavior
+
+    arrival_margin = generate_arrival_margin(
+        travel_purpose,
+        experience,
+        distraction,
+        stress_resilience,
+    )
+
+    walking_speed = generate_walking_speed(
+        age,
+        fitness,
+        experience,
+        distraction,
+    )
+
+    online_checkin_probability = generate_online_checkin_probability(
+        travel_purpose,
+        experience,
+        distraction,
+    )
+
+    baggage_probability = generate_baggage_probability(
+        travel_purpose,
+        distraction,
+    )
+
+    # Identity details
+
     str_fecha = birth_date.strftime("%Y%m%d")
     random_digits = random.randint(1000, 9999)
 
-    # 5. Email basado en el nombre (limpio de acentos y espacios)
     nombre_limpio = limpiar_texto(first_name)
     apellido_limpio = limpiar_texto(last_name).replace(" ", "")
+
     domain = random.choice(["gmail.com", "yahoo.com", "outlook.com"])
+
     email = f"{nombre_limpio}.{apellido_limpio}{random.randint(10, 99)}@{domain}"
 
-    # 6. Teléfono con prefijo del país
-    num_local = "".join([str(random.randint(0, 9)) for _ in range(8)])
+    num_local = "".join(str(random.randint(0, 9)) for _ in range(8))
+
     phone_number = f"{config['phone_prefix']} {num_local}"
 
-    # 7. Motivo del viaje
-    travel_purpose = random.choice(list(TravelPurpose))
+    loyalty_level = generate_loyalty_level(travel_experience, travel_purpose)
 
-    # 8. Arrival margin basado en el propósito del viaje
-    arrival_margin = generate_arrival_margin(travel_purpose)
-
-    passenger = Passenger(
+    return Passenger(
         first_name=first_name,
         last_name=last_name,
         birth_date=birth_date,
-        gender=Gender.MALE if gender == "Male" else Gender.FEMALE,
+        gender=gender,
         nationality=selected_country,
         document_type=DocumentType(DOC_TYPE_MAP[config["doc_type"]]),
         document_number=int(f"{str_fecha}{random_digits}"),
         email=email,
         phone=phone_number,
         travel_purpose=travel_purpose,
+        traits=traits,
+        loyalty_level=loyalty_level,
+        online_checkin_probability=(online_checkin_probability),
+        baggage_probability=baggage_probability,
         arrival_margin=arrival_margin,
+        walking_speed=walking_speed,
     )
-
-    return passenger
 
 
 def generate_passengers(n):
@@ -164,21 +236,30 @@ def generate_passengers(n):
 
 
 def main():
-    passengers = generate_passengers(10_000)
+    # crear 10 pasajeros de prueba y visualizar sus estadisticas y guardarlo en un .txt
 
-    """ Analizar average margin por travel purpose """
-    margin_by_purpose = {}
-    for passenger in passengers:
-        if passenger.travel_purpose not in margin_by_purpose:
-            margin_by_purpose[passenger.travel_purpose] = []
-        margin_by_purpose[passenger.travel_purpose].append(passenger.arrival_margin)
+    passengers = generate_passengers(10)
 
-    print("Travel Purpose    Arrival Margin")
-    print("----------------------------------")
+    file_name = "passenger_data.txt"
+    with open(file_name, "w", encoding="utf-8") as f:
+        for passenger in passengers:
+            f.write(f"Passenger: {passenger.first_name} {passenger.last_name}\n")
+            f.write(f"  Age: {(date.today() - passenger.birth_date).days // 365}\n")
+            f.write(f"  Travel Purpose: {passenger.travel_purpose.value}\n")
+            f.write(f"  Fitness: {passenger.traits.fitness:.2f}\n")
+            f.write(f"  Stress Resilience: {passenger.traits.stress_resilience:.2f}\n")
+            f.write(
+                f"  Distraction Proneness: {passenger.traits.distraction_proneness:.2f}\n"
+            )
+            f.write(f"  Travel Experience: {passenger.traits.travel_experience}\n")
+            f.write(f"  Arrival Margin: {passenger.arrival_margin} minutes\n")
+            f.write(f"  Walking Speed: {passenger.walking_speed} m/s\n")
+            f.write(
+                f"  Online Check-in Probability: {passenger.online_checkin_probability:.2f}\n"
+            )
+            f.write(f"  Baggage Probability: {passenger.baggage_probability:.2f}\n")
 
-    for purpose, margins in margin_by_purpose.items():
-        average_margin = sum(margins) / len(margins)
-        print(f"{purpose.value}       {average_margin:.2f} minutes")
+    print(f"Passenger data saved to {file_name}")
 
 
 if __name__ == "__main__":
