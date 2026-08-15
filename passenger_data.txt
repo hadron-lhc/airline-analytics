@@ -1,0 +1,119 @@
+Passenger: Esperanza Concepción
+  Age: 48
+  Travel Purpose: Family
+  Fitness: 0.40
+  Stress Resilience: 0.46
+  Distraction Proneness: 0.60
+  Travel Experience: 6
+  Arrival Margin: 214 minutes
+  Walking Speed: 1.15 m/s
+  Online Check-in Probability: 0.55
+  Baggage Probability: 0.93
+
+Passenger: Jane Benson
+  Age: 18
+  Travel Purpose: Business
+  Fitness: 0.57
+  Stress Resilience: 0.30
+  Distraction Proneness: 0.58
+  Travel Experience: 2
+  Arrival Margin: 92 minutes
+  Walking Speed: 1.11 m/s
+  Online Check-in Probability: 0.80
+  Baggage Probability: 0.19
+
+Passenger: Teresa Rowe
+  Age: 62
+  Travel Purpose: Leisure
+  Fitness: 0.72
+  Stress Resilience: 0.87
+  Distraction Proneness: 0.81
+  Travel Experience: 6
+  Arrival Margin: 203 minutes
+  Walking Speed: 1.26 m/s
+  Online Check-in Probability: 0.51
+  Baggage Probability: 0.70
+
+Passenger: 秀芳 田
+  Age: 50
+  Travel Purpose: Family
+  Fitness: 0.25
+  Stress Resilience: 0.37
+  Distraction Proneness: 0.90
+  Travel Experience: 4
+  Arrival Margin: 226 minutes
+  Walking Speed: 0.99 m/s
+  Online Check-in Probability: 0.47
+  Baggage Probability: 0.94
+
+Passenger: Adelgunde Dörr
+  Age: 43
+  Travel Purpose: Business
+  Fitness: 0.62
+  Stress Resilience: 0.88
+  Distraction Proneness: 0.33
+  Travel Experience: 6
+  Arrival Margin: 49 minutes
+  Walking Speed: 1.32 m/s
+  Online Check-in Probability: 0.93
+  Baggage Probability: 0.14
+
+Passenger: 桂珍 胡
+  Age: 39
+  Travel Purpose: Leisure
+  Fitness: 0.72
+  Stress Resilience: 0.57
+  Distraction Proneness: 0.91
+  Travel Experience: 4
+  Arrival Margin: 188 minutes
+  Walking Speed: 1.15 m/s
+  Online Check-in Probability: 0.44
+  Baggage Probability: 0.74
+
+Passenger: 桃子 田中
+  Age: 76
+  Travel Purpose: Family
+  Fitness: 0.47
+  Stress Resilience: 0.74
+  Distraction Proneness: 0.32
+  Travel Experience: 4
+  Arrival Margin: 222 minutes
+  Walking Speed: 1.06 m/s
+  Online Check-in Probability: 0.48
+  Baggage Probability: 0.87
+
+Passenger: 健 张
+  Age: 26
+  Travel Purpose: Leisure
+  Fitness: 0.78
+  Stress Resilience: 0.46
+  Distraction Proneness: 0.61
+  Travel Experience: 4
+  Arrival Margin: 199 minutes
+  Walking Speed: 1.33 m/s
+  Online Check-in Probability: 0.47
+  Baggage Probability: 0.74
+
+Passenger: くみ子 石井
+  Age: 81
+  Travel Purpose: Leisure
+  Fitness: 0.28
+  Stress Resilience: 0.58
+  Distraction Proneness: 0.74
+  Travel Experience: 3
+  Arrival Margin: 184 minutes
+  Walking Speed: 0.92 m/s
+  Online Check-in Probability: 0.52
+  Baggage Probability: 0.75
+
+Passenger: 波 陈
+  Age: 48
+  Travel Purpose: Business
+  Fitness: 0.61
+  Stress Resilience: 0.75
+  Distraction Proneness: 0.67
+  Travel Experience: 6
+  Arrival Margin: 74 minutes
+  Walking Speed: 1.06 m/s
+  Online Check-in Probability: 0.87
+  Baggage Probability: 0.27
