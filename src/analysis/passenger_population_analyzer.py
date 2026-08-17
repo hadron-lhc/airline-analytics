@@ -1,5 +1,5 @@
 from collections import Counter, defaultdict
-from statistics import mean, median, stdev
+from statistics import mean, median, stdev, quantiles
 
 from ..enums.world_enums import LoyaltyLevel
 from ..world.passenger import Passenger
@@ -31,7 +31,13 @@ class PassengerPopulationAnalyzer:
                 "min": 0,
                 "max": 0,
                 "stdev": 0,
+                "p10": 0,
+                "p25": 0,
+                "p75": 0,
+                "p90": 0,
             }
+
+        percentiles = quantiles(values, n=100, method="inclusive")
 
         return {
             "count": len(values),
@@ -40,6 +46,10 @@ class PassengerPopulationAnalyzer:
             "min": min(values),
             "max": max(values),
             "stdev": round(stdev(values), 3) if len(values) > 1 else 0,
+            "p10": round(percentiles[9], 3),
+            "p25": round(percentiles[24], 3),
+            "p75": round(percentiles[74], 3),
+            "p90": round(percentiles[89], 3),
         }
 
     @staticmethod
