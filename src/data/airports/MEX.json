@@ -1,0 +1,40 @@
+{
+  "airport_code": "MEX",
+  "width": 1200,
+  "height": 800,
+
+  "locations": {
+    "entrance": {
+      "x": 60,
+      "y": 400
+    },
+    "check_in": {
+      "x": 216,
+      "y": 400
+    },
+    "security": {
+      "x": 408,
+      "y": 400
+    },
+    "gate_H1": {
+      "x": 696,
+      "y": 256
+    },
+    "gate_H2": {
+      "x": 696,
+      "y": 360
+    },
+    "gate_H3": {
+      "x": 696,
+      "y": 464
+    },
+    "baggage_claim": {
+      "x": 192,
+      "y": 704
+    },
+    "exit": {
+      "x": 60,
+      "y": 704
+    }
+  }
+}

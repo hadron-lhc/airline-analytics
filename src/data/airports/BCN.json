@@ -1,0 +1,40 @@
+{
+  "airport_code": "BCN",
+  "width": 1100,
+  "height": 750,
+
+  "locations": {
+    "entrance": {
+      "x": 55,
+      "y": 375
+    },
+    "check_in": {
+      "x": 198,
+      "y": 375
+    },
+    "security": {
+      "x": 374,
+      "y": 375
+    },
+    "gate_D6": {
+      "x": 638,
+      "y": 240
+    },
+    "gate_D7": {
+      "x": 638,
+      "y": 338
+    },
+    "gate_D8": {
+      "x": 638,
+      "y": 435
+    },
+    "baggage_claim": {
+      "x": 176,
+      "y": 660
+    },
+    "exit": {
+      "x": 55,
+      "y": 660
+    }
+  }
+}

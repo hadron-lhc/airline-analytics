@@ -1,0 +1,32 @@
+{
+  "airport_code": "SCL",
+  "width": 1000,
+  "height": 700,
+
+  "locations": {
+    "entrance": {
+      "x": 50,
+      "y": 350
+    },
+    "check_in": {
+      "x": 180,
+      "y": 350
+    },
+    "security": {
+      "x": 340,
+      "y": 350
+    },
+    "gate_J1": {
+      "x": 580,
+      "y": 315
+    },
+    "baggage_claim": {
+      "x": 160,
+      "y": 616
+    },
+    "exit": {
+      "x": 50,
+      "y": 616
+    }
+  }
+}
