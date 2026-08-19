@@ -36,4 +36,3 @@ def load_airport_layouts() -> dict[str, AirportLayout]:
         code = path.stem.upper()
         layouts[code] = load_airport_layout(code)
     return layouts
-

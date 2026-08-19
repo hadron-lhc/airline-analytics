@@ -55,6 +55,7 @@ class Passenger:
 
     arrival_margin: int = 120
     walking_speed: float = 1.2
+    stress_resilience: float = 0.5
 
     # Behavioral Traits
 
@@ -65,6 +66,9 @@ class Passenger:
     # Simulation State
 
     state: PassengerState = PassengerState.AT_HOME
+
+    current_speed: float | None = None
+    current_stress: float | None = None
 
     current_airport: str | None = None
     current_gate: Gate | None = None

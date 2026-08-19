@@ -113,3 +113,11 @@ class CurrencyType(Enum):
     CHF = "Swiss.Franc"
     HKD = "Hong.Kong.Dollar"
     SGD = "Singapure.Dollar"
+
+
+class StressEvent(Enum):
+    TIME_PRESSURE = "Time_Pressure"
+    WAITING = "Waiting"
+    SECURITY = "Security"
+    RUNNING_LATE = "Running_Late"
+    REACHED_GATE = "Reached_Gate"

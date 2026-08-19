@@ -224,6 +224,7 @@ def create_random_passenger() -> Passenger:
         baggage_probability=baggage_probability,
         arrival_margin=arrival_margin,
         walking_speed=walking_speed,
+        stress_resilience=stress_resilience,
     )
 
 

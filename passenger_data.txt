@@ -1,119 +1,110 @@
-Passenger: Esperanza Concepción
-  Age: 48
-  Travel Purpose: Family
-  Fitness: 0.40
-  Stress Resilience: 0.46
-  Distraction Proneness: 0.60
-  Travel Experience: 6
-  Arrival Margin: 214 minutes
-  Walking Speed: 1.15 m/s
-  Online Check-in Probability: 0.55
-  Baggage Probability: 0.93
-
-Passenger: Jane Benson
-  Age: 18
+Passenger: Andrea Campo
+  Age: 80
   Travel Purpose: Business
-  Fitness: 0.57
-  Stress Resilience: 0.30
-  Distraction Proneness: 0.58
-  Travel Experience: 2
-  Arrival Margin: 92 minutes
-  Walking Speed: 1.11 m/s
-  Online Check-in Probability: 0.80
-  Baggage Probability: 0.19
-
-Passenger: Teresa Rowe
-  Age: 62
-  Travel Purpose: Leisure
-  Fitness: 0.72
-  Stress Resilience: 0.87
-  Distraction Proneness: 0.81
-  Travel Experience: 6
-  Arrival Margin: 203 minutes
-  Walking Speed: 1.26 m/s
-  Online Check-in Probability: 0.51
-  Baggage Probability: 0.70
-
-Passenger: 秀芳 田
-  Age: 50
+  Fitness: 0.29
+  Stress Resilience: 0.70
+  Distraction Proneness: 0.26
+  Travel Experience: 7
+  Arrival Margin: 47 minutes
+  Walking Speed: 0.96 m/s
+  Online Check-in Probability: 0.99
+  Baggage Probability: 0.21
+Passenger: Vanessa Zapata
+  Age: 21
   Travel Purpose: Family
-  Fitness: 0.25
-  Stress Resilience: 0.37
-  Distraction Proneness: 0.90
-  Travel Experience: 4
-  Arrival Margin: 226 minutes
-  Walking Speed: 0.99 m/s
-  Online Check-in Probability: 0.47
-  Baggage Probability: 0.94
-
-Passenger: Adelgunde Dörr
-  Age: 43
-  Travel Purpose: Business
-  Fitness: 0.62
-  Stress Resilience: 0.88
-  Distraction Proneness: 0.33
-  Travel Experience: 6
-  Arrival Margin: 49 minutes
-  Walking Speed: 1.32 m/s
-  Online Check-in Probability: 0.93
-  Baggage Probability: 0.14
-
-Passenger: 桂珍 胡
-  Age: 39
-  Travel Purpose: Leisure
-  Fitness: 0.72
-  Stress Resilience: 0.57
-  Distraction Proneness: 0.91
-  Travel Experience: 4
-  Arrival Margin: 188 minutes
-  Walking Speed: 1.15 m/s
-  Online Check-in Probability: 0.44
-  Baggage Probability: 0.74
-
-Passenger: 桃子 田中
-  Age: 76
-  Travel Purpose: Family
-  Fitness: 0.47
-  Stress Resilience: 0.74
-  Distraction Proneness: 0.32
-  Travel Experience: 4
-  Arrival Margin: 222 minutes
-  Walking Speed: 1.06 m/s
-  Online Check-in Probability: 0.48
-  Baggage Probability: 0.87
-
-Passenger: 健 张
-  Age: 26
-  Travel Purpose: Leisure
-  Fitness: 0.78
-  Stress Resilience: 0.46
-  Distraction Proneness: 0.61
-  Travel Experience: 4
-  Arrival Margin: 199 minutes
-  Walking Speed: 1.33 m/s
-  Online Check-in Probability: 0.47
-  Baggage Probability: 0.74
-
-Passenger: くみ子 石井
-  Age: 81
-  Travel Purpose: Leisure
-  Fitness: 0.28
-  Stress Resilience: 0.58
-  Distraction Proneness: 0.74
+  Fitness: 0.53
+  Stress Resilience: 0.55
+  Distraction Proneness: 0.17
   Travel Experience: 3
-  Arrival Margin: 184 minutes
-  Walking Speed: 0.92 m/s
-  Online Check-in Probability: 0.52
-  Baggage Probability: 0.75
-
-Passenger: 波 陈
-  Age: 48
-  Travel Purpose: Business
-  Fitness: 0.61
-  Stress Resilience: 0.75
-  Distraction Proneness: 0.67
+  Arrival Margin: 206 minutes
+  Walking Speed: 1.24 m/s
+  Online Check-in Probability: 0.51
+  Baggage Probability: 0.90
+Passenger: Debbie Fernandez
+  Age: 85
+  Travel Purpose: Leisure
+  Fitness: 0.63
+  Stress Resilience: 0.65
+  Distraction Proneness: 0.76
   Travel Experience: 6
-  Arrival Margin: 74 minutes
-  Walking Speed: 1.06 m/s
-  Online Check-in Probability: 0.87
-  Baggage Probability: 0.27
+  Arrival Margin: 175 minutes
+  Walking Speed: 1.12 m/s
+  Online Check-in Probability: 0.53
+  Baggage Probability: 0.82
+Passenger: Joshua Castillo
+  Age: 48
+  Travel Purpose: Leisure
+  Fitness: 0.66
+  Stress Resilience: 0.86
+  Distraction Proneness: 0.78
+  Travel Experience: 7
+  Arrival Margin: 173 minutes
+  Walking Speed: 1.21 m/s
+  Online Check-in Probability: 0.57
+  Baggage Probability: 0.81
+Passenger: Jodi Hernandez
+  Age: 38
+  Travel Purpose: Leisure
+  Fitness: 0.81
+  Stress Resilience: 0.65
+  Distraction Proneness: 0.43
+  Travel Experience: 4
+  Arrival Margin: 171 minutes
+  Walking Speed: 1.37 m/s
+  Online Check-in Probability: 0.54
+  Baggage Probability: 0.80
+Passenger: Joanna Brock
+  Age: 28
+  Travel Purpose: Business
+  Fitness: 0.50
+  Stress Resilience: 0.51
+  Distraction Proneness: 0.35
+  Travel Experience: 7
+  Arrival Margin: 52 minutes
+  Walking Speed: 1.1 m/s
+  Online Check-in Probability: 0.94
+  Baggage Probability: 0.18
+Passenger: Rebecca Stephens
+  Age: 51
+  Travel Purpose: Family
+  Fitness: 0.74
+  Stress Resilience: 0.78
+  Distraction Proneness: 0.14
+  Travel Experience: 8
+  Arrival Margin: 173 minutes
+  Walking Speed: 1.33 m/s
+  Online Check-in Probability: 0.62
+  Baggage Probability: 0.89
+Passenger: 林 梁
+  Age: 40
+  Travel Purpose: Leisure
+  Fitness: 0.48
+  Stress Resilience: 0.67
+  Distraction Proneness: 0.44
+  Travel Experience: 6
+  Arrival Margin: 161 minutes
+  Walking Speed: 1.12 m/s
+  Online Check-in Probability: 0.62
+  Baggage Probability: 0.72
+Passenger: Natasha Smith
+  Age: 78
+  Travel Purpose: Business
+  Fitness: 0.55
+  Stress Resilience: 0.73
+  Distraction Proneness: 0.22
+  Travel Experience: 6
+  Arrival Margin: 58 minutes
+  Walking Speed: 1.23 m/s
+  Online Check-in Probability: 0.99
+  Baggage Probability: 0.16
+Passenger: Hilda Bohórquez
+  Age: 28
+  Travel Purpose: Business
+  Fitness: 0.86
+  Stress Resilience: 0.69
+  Distraction Proneness: 0.38
+  Travel Experience: 7
+  Arrival Margin: 47 minutes
+  Walking Speed: 1.3 m/s
+  Online Check-in Probability: 0.99
+  Baggage Probability: 0.17
