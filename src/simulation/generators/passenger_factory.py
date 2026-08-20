@@ -5,6 +5,7 @@ from ...enums.world_enums import (
     DocumentType,
     TravelPurpose,
 )
+from ...world.models.stress_model import StressModel
 from .passenger_helpers.traits import (
     generate_fitness,
     generate_travel_experience,
@@ -162,6 +163,10 @@ def create_random_passenger() -> Passenger:
         travel_experience=experience,
     )
 
+    stress_model = StressModel()
+
+    initial_stress = stress_model.calculate_initial_stress(traits.stress_resilience)
+
     # Derived behavior
 
     arrival_margin = generate_arrival_margin(
@@ -219,6 +224,8 @@ def create_random_passenger() -> Passenger:
         phone=phone_number,
         travel_purpose=travel_purpose,
         traits=traits,
+        current_stress=initial_stress,
+        current_speed=0.0,
         loyalty_level=loyalty_level,
         online_checkin_probability=(online_checkin_probability),
         baggage_probability=baggage_probability,
