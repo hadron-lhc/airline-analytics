@@ -1,144 +1,179 @@
+from datetime import timedelta
+
 from ...enums.simulation_enums import EventType
-from ..event import SimulationEvent
-from ..time_models import (
-    simulate_passenger_arrival,
-    simulate_checkin_duration,
-    simulate_security_duration,
-    simulate_boarding_duration,
-    simulate_disembark_duration,
-    simulate_exit_airport_duration,
-    simulate_trip_to_airport,
-)
-
 from ...world.booking import Booking
-from ...enums.world_enums import FlightMilestone
-
-from datetime import datetime
-
-
-def calculate_times(booking: Booking):
-    passenger = booking.passenger
-    flight = booking.flight
-
-    travel_duration = simulate_trip_to_airport(passenger)
-
-    arrival_airport = simulate_passenger_arrival(passenger, flight)
-
-    checkin = arrival_airport + simulate_checkin_duration(passenger, flight)
-
-    security = checkin + simulate_security_duration(passenger, flight)
-
-    boarding = flight.get_milestone(FlightMilestone.BOARDING_START)
-
-    boarded = boarding + simulate_boarding_duration(passenger, flight)
-
-    takeoff = flight.get_milestone(FlightMilestone.TAKE_OFF)
-
-    landed = flight.get_milestone(FlightMilestone.LANDED)
-
-    exit_aircraft = landed + simulate_disembark_duration(passenger, flight)
-
-    exit_airport = exit_aircraft + simulate_exit_airport_duration(passenger, flight)
-
-    return {
-        EventType.LEAVE_HOME: arrival_airport - travel_duration,
-        EventType.ARRIVE_AIRPORT: arrival_airport,
-        EventType.CHECK_IN_COMPLETED: checkin,
-        EventType.SECURITY_COMPLETED: security,
-        EventType.BOARDING_STARTED: boarding,
-        EventType.PASSENGER_BOARDED: boarded,
-        EventType.AIRCRAFT_TAKE_OFF: takeoff,
-        EventType.AIRCRAFT_LANDED: landed,
-        EventType.EXIT_AIRCRAFT: exit_aircraft,
-        EventType.EXIT_AIRPORT: exit_airport,
-    }
+from ...world.models.stress_model import StressModel
+from ...world.models.walking_model import WalkingModel
+from ...world.airport_layout import AirportLayout
+from ..event import SimulationEvent
+from ..passenger_movement import PassengerMovement
 
 
-def generate_passenger_journey(booking: Booking):
-    passenger = booking.passenger
-    flight = booking.flight
-
-    passenger.flight_history.append(flight.flight_number)
-
-    travel_plan = [
-        EventType.LEAVE_HOME,
-        EventType.ARRIVE_AIRPORT,
-        EventType.CHECK_IN_COMPLETED,
-        EventType.SECURITY_COMPLETED,
-        EventType.BOARDING_STARTED,
-        EventType.PASSENGER_BOARDED,
-        EventType.AIRCRAFT_TAKE_OFF,
-        EventType.AIRCRAFT_LANDED,
-        EventType.EXIT_AIRCRAFT,
-        EventType.EXIT_AIRPORT,
-    ]
-
-    times = calculate_times(booking)
-
-    events = []
-
-    for event_type in travel_plan:
-        event = SimulationEvent(
-            event_time=times[event_type],
-            event_type=event_type,
-            entity=passenger,
-            payload={"flight": flight},
-        )
-        events.append(event)
-
-    return events
-
-
-def show_events(events):
-    for event in events:
-        print(
-            f"Event: {event.event_type.value}, Time: {event.event_time}, Passenger: {event.entity.first_name} {event.entity.last_name}"
+class PassengerJourney:
+    def __init__(
+        self,
+        walking_model: WalkingModel | None = None,
+        stress_model: StressModel | None = None,
+    ):
+        self.movement = PassengerMovement(
+            walking_model=walking_model,
+            stress_model=stress_model,
         )
 
+    def run(
+        self,
+        booking: Booking,
+        airport_layout: AirportLayout,
+    ) -> list[SimulationEvent]:
+        passenger = booking.passenger
+        flight = booking.flight
 
-if __name__ == "__main__":
-    from datetime import date
-    from ...world.passenger import Passenger
-    from ...world.flight import Flight
-    from ...world.airport import Airport
-    from ...world.gate import Gate
-    from ...world.booking import Booking
-    from ...enums.world_enums import Gender, DocumentType, BookingStatus, TravelClass, CurrencyType
-    from uuid import uuid4
+        events: list[SimulationEvent] = []
 
-    passenger = Passenger(
-        first_name="Oliver",
-        last_name="Simth",
-        birth_date=date(200, 11, 12),
-        gender=Gender.MALE,
-        nationality="US",
-        document_type=DocumentType.DNI,
-        document_number="2391541",
-        email="oliversith03@gmail.com",
-        phone="+15551253124",
-    )
-    flight = Flight(
-        flight_number="AR130",
-        origin_airport=Airport(iata_code="EZE", name="Aeropuerto de Ezeiza", gates=[]),
-        destination_airport=Airport(
-            iata_code="MIA", name="Aeropuerto Internacional de Miami", gates=[]
-        ),
-        scheduled_departure=datetime(2026, 7, 13, 12, 0, 0),
-        scheduled_arrival=datetime(2026, 7, 13, 21, 30, 0),
-        gate=Gate(gate_code="A1"),
-    )
-    seat = flight.assign_seat(passenger)
-    booking = Booking(
-        passenger=passenger,
-        flight=flight,
-        seat=seat,
-        booking_date=datetime.now(),
-        booking_status=BookingStatus.CONFIRMED,
-        travel_class=TravelClass.ECONOMY,
-        ticket_price=500.0,
-        currency=CurrencyType.USD,
-    )
-    passenger.current_booking = booking
-    events = generate_passenger_journey(booking)
+        entrance = airport_layout.get_location("entrance")
+        check_in = airport_layout.get_location("check_in")
+        security = airport_layout.get_location("security")
+        gate = airport_layout.get_gate_location(flight.gate.gate_code)
 
-    show_events(events)
+        # --------------------------------------------------
+        # ARRIVAL AT AIRPORT
+        # --------------------------------------------------
+
+        arrival_time = flight.scheduled_departure - timedelta(minutes=120)
+
+        passenger.current_stress = self.movement.stress_model.calculate_initial_stress(
+            passenger.traits.stress_resilience
+        )
+
+        events.append(
+            SimulationEvent(
+                event_time=arrival_time,
+                event_type=EventType.ARRIVE_AIRPORT,
+                entity=passenger,
+                payload={
+                    "airport": flight.origin_airport.iata_code,
+                    "stress": passenger.current_stress,
+                },
+            )
+        )
+
+        # --------------------------------------------------
+        # ENTRANCE → CHECK-IN
+        # --------------------------------------------------
+
+        movement = self.movement.move(
+            passenger,
+            entrance,
+            check_in,
+        )
+
+        check_in_arrival = arrival_time + timedelta(seconds=movement.walking_time)
+
+        events.append(
+            SimulationEvent(
+                event_time=check_in_arrival,
+                event_type=EventType.ARRIVE_CHECK_IN,
+                entity=passenger,
+                payload={
+                    "distance": movement.distance,
+                    "walking_speed": movement.walking_speed,
+                    "walking_time": movement.walking_time,
+                    "stress": passenger.current_stress,
+                },
+            )
+        )
+
+        # --------------------------------------------------
+        # CHECK-IN
+        # --------------------------------------------------
+
+        check_in_duration = timedelta(minutes=4)
+
+        check_in_completed = check_in_arrival + check_in_duration
+
+        events.append(
+            SimulationEvent(
+                event_time=check_in_completed,
+                event_type=EventType.CHECK_IN_COMPLETED,
+                entity=passenger,
+                payload={
+                    "duration": check_in_duration.total_seconds(),
+                    "stress": passenger.current_stress,
+                },
+            )
+        )
+
+        # --------------------------------------------------
+        # CHECK-IN → SECURITY
+        # --------------------------------------------------
+
+        movement = self.movement.move(
+            passenger,
+            check_in,
+            security,
+        )
+
+        security_arrival = check_in_completed + timedelta(seconds=movement.walking_time)
+
+        events.append(
+            SimulationEvent(
+                event_time=security_arrival,
+                event_type=EventType.SECURITY_STARTED,
+                entity=passenger,
+                payload={
+                    "distance": movement.distance,
+                    "walking_speed": movement.walking_speed,
+                    "walking_time": movement.walking_time,
+                    "stress": passenger.current_stress,
+                },
+            )
+        )
+
+        # --------------------------------------------------
+        # SECURITY
+        # --------------------------------------------------
+
+        security_duration = timedelta(seconds=45)
+
+        security_completed = security_arrival + security_duration
+
+        events.append(
+            SimulationEvent(
+                event_time=security_completed,
+                event_type=EventType.SECURITY_COMPLETED,
+                entity=passenger,
+                payload={
+                    "duration": security_duration.total_seconds(),
+                    "stress": passenger.current_stress,
+                },
+            )
+        )
+
+        # --------------------------------------------------
+        # SECURITY → GATE
+        # --------------------------------------------------
+
+        movement = self.movement.move(
+            passenger,
+            security,
+            gate,
+        )
+
+        gate_arrival = security_completed + timedelta(seconds=movement.walking_time)
+
+        events.append(
+            SimulationEvent(
+                event_time=gate_arrival,
+                event_type=EventType.ARRIVE_GATE,
+                entity=passenger,
+                payload={
+                    "gate": flight.gate.gate_code,
+                    "distance": movement.distance,
+                    "walking_speed": movement.walking_speed,
+                    "walking_time": movement.walking_time,
+                    "stress": passenger.current_stress,
+                },
+            )
+        )
+
+        return events

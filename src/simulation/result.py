@@ -12,7 +12,7 @@ from ..world.flight import Flight
 
 @dataclass(slots=True)
 class SimulationResult:
-    world: SimulationWorld
+    world: SimulationWorld | None
     events: list[SimulationEvent]
     initial_world: SimulationWorld | None = None
 

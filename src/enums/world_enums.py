@@ -116,8 +116,7 @@ class CurrencyType(Enum):
 
 
 class StressEvent(Enum):
-    TIME_PRESSURE = "Time_Pressure"
-    WAITING = "Waiting"
-    SECURITY = "Security"
-    RUNNING_LATE = "Running_Late"
-    REACHED_GATE = "Reached_Gate"
+    WAITING = auto()
+    TIME_PRESSURE = auto()
+    RUNNING_LATE = auto()
+    REACHED_GATE = auto()

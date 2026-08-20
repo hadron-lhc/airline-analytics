@@ -1,96 +1,103 @@
+import random
 from dataclasses import dataclass
 
 from ...enums.world_enums import StressEvent
-from ..passenger import Passenger
 
 
 @dataclass(slots=True)
 class StressModel:
-    recovery_rate: float = 0.02
-    accumulation_rate: float = 0.08
+    stress_impacts: dict[StressEvent, float] = None
 
-    STRESS_IMPACTS = {
-        StressEvent.TIME_PRESSURE: 0.08,
-        StressEvent.WAITING: 0.05,
-        StressEvent.SECURITY: 0.04,
-        StressEvent.RUNNING_LATE: 0.15,
-        StressEvent.REACHED_GATE: -0.08,
-    }
+    def __post_init__(self):
+        if self.stress_impacts is None:
+            self.stress_impacts = {
+                StressEvent.WAITING: 0.02,
+                StressEvent.TIME_PRESSURE: 0.08,
+                StressEvent.RUNNING_LATE: 0.15,
+                StressEvent.REACHED_GATE: -0.10,
+            }
 
-    def _clamp(self, value: float) -> float:
-        return max(0.0, min(1.0, value))
-
-    def apply_event(
+    def _clamp(
         self,
-        passenger: Passenger,
-        event: StressEvent,
+        value: float,
+        minimum: float = 0.0,
+        maximum: float = 1.0,
     ) -> float:
-        impact = self.STRESS_IMPACTS[event]
-
-        resilience = passenger.traits.stress_resilience
-
-        effective_impact = impact * (1 - resilience * 0.5)
-
-        passenger.current_stress = self._clamp(
-            passenger.current_stress + effective_impact
-        )
-
-        return passenger.current_stress
-
-    def _clamp(self, value: float) -> float:
-        return max(0.0, min(1.0, value))
+        return max(minimum, min(value, maximum))
 
     def calculate_initial_stress(
         self,
         stress_resilience: float,
     ) -> float:
-        """
-        Calculate the passenger's initial stress level.
-        """
+        base_stress = random.uniform(0.20, 0.35)
 
-        base_stress = 0.30
+        resilience_effect = stress_resilience * 0.10
 
-        resilience_effect = (0.5 - stress_resilience) * 0.20
+        return self._clamp(base_stress - resilience_effect)
 
-        return self._clamp(base_stress + resilience_effect)
-
-    def apply_stress(
+    def apply_event(
         self,
-        passenger: Passenger,
-        amount: float,
+        current_stress: float,
+        event: StressEvent,
+        stress_resilience: float,
     ) -> float:
-        """
-        Increase the passenger's current stress.
+        impact = self.stress_impacts.get(event, 0.0)
 
-        Stress resilience reduces the impact of stressful events.
-        """
+        effective_impact = impact * (1.0 - stress_resilience)
 
-        resilience = passenger.traits.stress_resilience
+        return self._clamp(current_stress + effective_impact)
 
-        effective_amount = amount * (1.0 - resilience * 0.5)
+    def calculate_time_pressure(
+        self,
+        time_remaining: float,
+        required_time: float,
+    ) -> float:
+        if required_time <= 0:
+            raise ValueError("Required time must be greater than zero.")
 
-        passenger.current_stress = self._clamp(
-            passenger.current_stress + effective_amount
-        )
+        if time_remaining <= 0:
+            return 1.0
 
-        return passenger.current_stress
+        margin = time_remaining / required_time
+
+        if margin >= 2.0:
+            return 0.0
+
+        if margin <= 1.0:
+            return 1.0
+
+        return 2.0 - margin
 
     def recover(
         self,
-        passenger: Passenger,
-        elapsed_minutes: float,
+        current_stress: float,
+        duration_minutes: float,
+        stress_resilience: float,
+        time_pressure: float,
     ) -> float:
         """
-        Reduce stress over time.
+        Update stress during a waiting period.
+
+        Low time pressure allows the passenger to recover.
+        High time pressure slows recovery and may increase stress.
         """
 
-        if elapsed_minutes < 0:
-            raise ValueError("Elapsed minutes cannot be negative.")
+        if duration_minutes <= 0:
+            return current_stress
 
-        resilience = passenger.traits.stress_resilience
+        time_pressure = self._clamp(time_pressure)
 
-        recovery = self.recovery_rate * elapsed_minutes * (0.5 + resilience)
+        # Comfortable waiting allows stress recovery.
+        recovery_rate = 0.01 * duration_minutes * (0.5 + stress_resilience)
 
-        passenger.current_stress = self._clamp(passenger.current_stress - recovery)
+        recovery_modifier = 1.0 - time_pressure
 
-        return passenger.current_stress
+        recovery = recovery_rate * recovery_modifier
+
+        # Under extreme pressure, waiting itself becomes stressful.
+        if time_pressure > 0.8:
+            stress_increase = 0.015 * duration_minutes * (time_pressure - 0.8) * 5.0
+
+            return self._clamp(current_stress - recovery + stress_increase)
+
+        return self._clamp(current_stress - recovery)
