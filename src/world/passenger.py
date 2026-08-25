@@ -55,7 +55,6 @@ class Passenger:
 
     arrival_margin: int = 120
     walking_speed: float = 1.2
-    stress_resilience: float = 0.5
 
     # Behavioral Traits
 

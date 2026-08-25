@@ -4,165 +4,242 @@ from ..simulation.simulation_runner import SimulationRunner
 from ..simulation.generators.passenger_factory import generate_passengers
 from ..simulation.generators.flight_factory import generate_flights
 from ..simulation.generators.booking_factory import generate_bookings
+
 from ..world.passenger import Passenger
 from ..world.flight import Flight
 
 
 def main():
-    print("=" * 70)
-    print("FIRST AIRLINE SIMULATION")
-    print("=" * 70)
-
-    # --------------------------------------------------
-    # GENERATE WORLD DATA
-    # --------------------------------------------------
+    # ==================================================
+    # GENERATE WORLD
+    # ==================================================
 
     passengers = generate_passengers(100)
     flights = generate_flights(5)
-    bookings = generate_bookings(passengers, flights)
+
+    bookings = generate_bookings(
+        passengers=passengers,
+        flights=flights,
+    )
+
+    print("=" * 70)
+    print("FIRST AIRLINE SIMULATION")
+    print("=" * 70)
 
     print(f"Passengers: {len(passengers)}")
     print(f"Flights:    {len(flights)}")
     print(f"Bookings:   {len(bookings)}")
 
-    # --------------------------------------------------
+    # ==================================================
     # RUN SIMULATION
-    # --------------------------------------------------
+    # ==================================================
 
     runner = SimulationRunner()
 
     result = runner.run(bookings)
 
-    print(f"Events:     {len(result.events)}")
+    events = result.events
+
+    print(f"Events:     {len(events)}")
     print(f"Duration:   {result.duration}")
 
-    # --------------------------------------------------
-    # GLOBAL TIMELINE
-    # --------------------------------------------------
+    # ==================================================
+    # GROUP PASSENGER EVENTS BY FLIGHT
+    # ==================================================
+
+    passenger_events_by_flight = defaultdict(list)
+
+    for event in events:
+        if not isinstance(event.entity, Passenger):
+            continue
+
+        flight_number = event.payload.get("flight")
+
+        if flight_number is not None:
+            passenger_events_by_flight[flight_number].append(event)
+
+    # ==================================================
+    # FLIGHT SUMMARY
+    # ==================================================
 
     print()
     print("=" * 70)
     print("FLIGHT SUMMARY")
     print("=" * 70)
 
-    # --------------------------------------------------
-    # GROUP EVENTS BY FLIGHT
-    # --------------------------------------------------
+    for flight in sorted(
+        flights,
+        key=lambda flight: flight.scheduled_departure,
+    ):
+        flight_number = flight.flight_number
 
-    flight_events = defaultdict(list)
-
-    for event in result.events:
-        flight = event.payload.get("flight")
-
-        if flight is not None:
-            flight_number = flight.flight_number
-        elif isinstance(event.entity, Flight):
-            flight_number = event.entity.flight_number
-        else:
-            continue
-
-        flight_events[flight_number].append(event)
-
-    # --------------------------------------------------
-    # SUMMARY PER FLIGHT
-    # --------------------------------------------------
-
-    for flight in sorted(flights, key=lambda f: f.scheduled_departure):
-        events = flight_events.get(flight.flight_number, [])
-
-        passenger_count = sum(
-            1
-            for booking in bookings
-            if booking.flight.flight_number == flight.flight_number
+        passenger_events = passenger_events_by_flight.get(
+            flight_number,
+            [],
         )
+
+        # ----------------------------------------------
+        # PASSENGERS
+        # ----------------------------------------------
+
+        passenger_ids = {event.entity.passenger_id for event in passenger_events}
+
+        # ----------------------------------------------
+        # FLIGHT EVENTS
+        # ----------------------------------------------
+
+        flight_events = [
+            event
+            for event in events
+            if isinstance(event.entity, Flight) and event.entity is flight
+        ]
+
+        # ----------------------------------------------
+        # PRINT FLIGHT INFORMATION
+        # ----------------------------------------------
 
         print()
         print("-" * 70)
+
         print(
             f"{flight.flight_number} "
             f"{flight.origin_airport.iata_code} → "
             f"{flight.destination_airport.iata_code}"
         )
-        print("-" * 70)
 
         print(f"Departure: {flight.scheduled_departure.strftime('%Y-%m-%d %H:%M:%S')}")
 
         print(f"Arrival:   {flight.scheduled_arrival.strftime('%Y-%m-%d %H:%M:%S')}")
 
         print(f"Gate:      {flight.gate.gate_code}")
-        print(f"Passengers: {passenger_count}")
 
-        # --------------------------------------------------
-        # FLIGHT MILESTONES
-        # --------------------------------------------------
+        print(f"Passengers: {len(passenger_ids)}")
+
+        # ----------------------------------------------
+        # OPERATIONAL EVENTS
+        # ----------------------------------------------
 
         print()
-        print("Flight milestones:")
+        print("Operational events:")
 
-        for event in events:
-            if isinstance(event.entity, Flight):
-                print(
-                    f"  {event.event_time.strftime('%H:%M:%S')} "
-                    f"{event.event_type.value}"
-                )
+        for event in sorted(
+            flight_events,
+            key=lambda event: event.event_time,
+        ):
+            print(
+                f"  {event.event_time.strftime('%H:%M:%S')} | {event.event_type.value}"
+            )
 
-        # --------------------------------------------------
-        # PASSENGER EVENTS
-        # --------------------------------------------------
+        # ----------------------------------------------
+        # PASSENGER ARRIVAL
+        # ----------------------------------------------
 
-        passenger_events = [
-            event for event in events if isinstance(event.entity, Passenger)
+        airport_arrivals = [
+            event.event_time
+            for event in passenger_events
+            if event.event_type.value == "Arrive_Airport"
         ]
 
-        print()
-        print(f"Passenger events: {len(passenger_events)}")
+        if airport_arrivals:
+            first_arrival = min(airport_arrivals)
+            last_arrival = max(airport_arrivals)
 
-        if passenger_events:
-            first_event = min(
-                passenger_events,
-                key=lambda event: event.event_time,
-            )
-
-            last_event = max(
-                passenger_events,
-                key=lambda event: event.event_time,
-            )
-
-            print(
-                f"First passenger event: {first_event.event_time.strftime('%H:%M:%S')}"
-            )
-
-            print(
-                f"Last passenger event:  {last_event.event_time.strftime('%H:%M:%S')}"
-            )
-
-        # --------------------------------------------------
-        # EVENT COUNTS
-        # --------------------------------------------------
-
-        event_counts = defaultdict(int)
-
-        for event in passenger_events:
-            event_counts[event.event_type.value] += 1
-
-        if event_counts:
             print()
-            print("Passenger event counts:")
+            print("Passenger arrivals:")
 
-            for event_type, count in sorted(event_counts.items()):
-                print(f"  {event_type:<25} {count}")
+            print(f"  First: {first_arrival.strftime('%H:%M:%S')}")
 
-    # --------------------------------------------------
-    # SAVE SIMULATION
-    # --------------------------------------------------
+            print(f"  Last:  {last_arrival.strftime('%H:%M:%S')}")
 
-    output_path = result.save_events("data/output/first_simulation.json")
+        # ----------------------------------------------
+        # GATE ARRIVAL
+        # ----------------------------------------------
+
+        gate_arrivals = [
+            event.event_time
+            for event in passenger_events
+            if event.event_type.value == "Arrive_Gate"
+        ]
+
+        if gate_arrivals:
+            first_gate = min(gate_arrivals)
+            last_gate = max(gate_arrivals)
+
+            print()
+            print("Gate arrivals:")
+
+            print(f"  First: {first_gate.strftime('%H:%M:%S')}")
+
+            print(f"  Last:  {last_gate.strftime('%H:%M:%S')}")
+
+        # ----------------------------------------------
+        # WALKING SPEED
+        # ----------------------------------------------
+
+        walking_speeds = [
+            event.payload["walking_speed"]
+            for event in passenger_events
+            if "walking_speed" in event.payload
+        ]
+
+        if walking_speeds:
+            average_speed = sum(walking_speeds) / len(walking_speeds)
+
+            print()
+            print(f"Average walking speed: {average_speed:.2f} m/s")
+
+        # ----------------------------------------------
+        # STRESS
+        # ----------------------------------------------
+
+        stress_values = [
+            event.payload["stress"]
+            for event in passenger_events
+            if "stress" in event.payload
+        ]
+
+        if stress_values:
+            average_stress = sum(stress_values) / len(stress_values)
+
+            print(f"Average stress: {average_stress:.2f}")
+
+    # ==================================================
+    # GLOBAL TIMELINE
+    # ==================================================
 
     print()
     print("=" * 70)
-    print("SIMULATION SAVED")
+    print("GLOBAL TIMELINE — FIRST 30 EVENTS")
     print("=" * 70)
-    print(output_path)
+
+    for event in events[:30]:
+        if isinstance(event.entity, Flight):
+            entity_name = event.entity.flight_number
+
+        elif isinstance(event.entity, Passenger):
+            entity_name = f"{event.entity.first_name} {event.entity.last_name}"
+
+        else:
+            entity_name = str(event.entity)
+
+        print(
+            f"{event.event_time.strftime('%H:%M:%S')} | "
+            f"{event.event_type.value:<25} | "
+            f"{entity_name}"
+        )
+
+    if len(events) > 30:
+        print()
+        print(f"... {len(events) - 30} more events")
+
+    # ==================================================
+    # END
+    # ==================================================
+
+    print()
+    print("=" * 70)
+    print("SIMULATION COMPLETED")
+    print("=" * 70)
 
 
 if __name__ == "__main__":

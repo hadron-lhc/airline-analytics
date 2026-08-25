@@ -18,23 +18,42 @@ class SimulationResult:
 
     def to_event_dicts(self) -> list[dict]:
         result = []
-        for e in self.events:
+
+        for event in self.events:
             entry = {
-                "time": e.event_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "event": e.event_type.value,
+                "time": event.event_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "event": event.event_type.value,
             }
-            if isinstance(e.entity, Passenger):
+
+            # --------------------------------------------------
+            # PASSENGER
+            # --------------------------------------------------
+
+            if isinstance(event.entity, Passenger):
                 entry["entity"] = "passenger"
-                entry["id"] = str(e.entity.passenger_id)
-                flight = e.payload.get("flight")
-                if flight:
-                    entry["flight"] = flight.flight_number
-                    entry["airport"] = flight.origin_airport.iata_code
-            elif isinstance(e.entity, Flight):
+                entry["id"] = str(event.entity.passenger_id)
+
+                flight = event.payload.get("flight")
+                airport = event.payload.get("airport")
+
+                if flight is not None:
+                    entry["flight"] = flight
+
+                if airport is not None:
+                    entry["airport"] = airport
+
+            # --------------------------------------------------
+            # FLIGHT
+            # --------------------------------------------------
+
+            elif isinstance(event.entity, Flight):
                 entry["entity"] = "flight"
-                entry["id"] = e.entity.flight_number
-                entry["airport"] = e.entity.origin_airport.iata_code
+                entry["id"] = event.entity.flight_number
+
+                entry["airport"] = event.entity.origin_airport.iata_code
+
             result.append(entry)
+
         return result
 
     def save_events(self, path: str | None = None) -> str:
