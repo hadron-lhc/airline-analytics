@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Airline Timeline</title>
+  <link rel="stylesheet" href="js/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Airline Day — Timeline</h1>
+    <div class="sim-time" id="sim-time">--:--</div>
+    <div class="legend" id="legend"></div>
+  </header>
+
+  <!-- Timeline: fixed, independent of the tabs -->
+  <section class="timeline-panel">
+    <div class="controls">
+      <button id="btn-play" title="Play/Pause">&#9654; Play</button>
+      <button id="btn-prev" title="Frame anterior">&#9194;</button>
+      <button id="btn-next" title="Frame siguiente">&#9193;</button>
+      <select id="speed">
+        <option value="1">1x</option>
+        <option value="5" selected>5x</option>
+        <option value="10">10x</option>
+        <option value="25">25x</option>
+        <option value="50">50x</option>
+      </select>
+      <span class="progress" id="frame-info">0 / 0</span>
+    </div>
+    <input type="range" id="slider" min="0" max="100" value="0" />
+    <div class="axis" id="axis"></div>
+  </section>
+
+  <!-- Tabs -->
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="metrics">Métricas</button>
+    <button class="tab" data-tab="airport">Aeropuerto</button>
+    <button class="tab" data-tab="air">Mapa aéreo</button>
+  </nav>
+
+  <main>
+    <!-- TAB: Métricas -->
+    <section class="tab-content" id="tab-metrics">
+      <div class="counters" id="counters"></div>
+      <div class="metrics-grid">
+        <div class="panel">
+          <h2>Cola de seguridad (por momento)</h2>
+          <div class="chart-wrap"><canvas id="security-chart"></canvas></div>
+        </div>
+        <div class="panel">
+          <h2>Operativo (acumulado)</h2>
+          <div class="chart-wrap"><canvas id="op-chart"></canvas></div>
+        </div>
+      </div>
+      <div class="panel chart-full">
+        <h2>Pasajeros esperando en seguridad (por aeropuerto, a lo largo del día)</h2>
+        <div class="chart-wrap queue-wrap"><canvas id="security-queue-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- TAB: Aeropuerto (planta sobre el layout real) -->
+    <section class="tab-content" id="tab-airport" hidden>
+      <div class="panel">
+        <div class="airport-top">
+          <label for="airport-select">Aeropuerto</label>
+          <select id="airport-select"></select>
+          <span class="airport-title" id="airport-title"></span>
+          <span class="airport-side" id="airport-side"></span>
+        </div>
+        <div id="airport-map" class="airport-plan"></div>
+        <div class="airport-note" id="airport-note"></div>
+        <div class="airport-gates" id="airport-gates"></div>
+      </div>
+    </section>
+
+    <!-- TAB: Mapa aéreo -->
+    <section class="tab-content" id="tab-air" hidden>
+      <div class="panel">
+        <h2>Red aérea — vuelos en el aire</h2>
+        <div id="air-map" class="air-map"></div>
+        <div id="air-list" class="air-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="vendor/chart.umd.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
