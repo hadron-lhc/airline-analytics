@@ -15,11 +15,12 @@ class FlightHandler:
             getattr(self, handler_name)(event)
 
     def _handle_boarding_started(self, event):
-        event.entity.status = FlightStatus.BOARDING
-        passengers = event.payload.get("passengers", [])
-        for p in passengers:
-            if p.state == PassengerState.WAITING_GATE:
-                p.state = PassengerState.BOARDING
+        flight = event.entity
+        flight.status = FlightStatus.BOARDING
+        for booking in flight.bookings:
+            passenger = booking.passenger
+            if passenger.state == PassengerState.WAITING_GATE:
+                passenger.state = PassengerState.BOARDING
 
     def _handle_aircraft_take_off(self, event):
         event.entity.status = FlightStatus.DEPARTED

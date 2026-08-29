@@ -1,13 +1,15 @@
 from ...enums.simulation_enums import EventType
-from ...enums.world_enums import PassengerState
+from ...enums.world_enums import FlightStatus, PassengerState
 
 
 class PassengerHandler:
     _handlers = {
         EventType.LEAVE_HOME: "_handle_leave_home",
         EventType.ARRIVE_AIRPORT: "_handle_arrive_airport",
+        EventType.ARRIVE_CHECK_IN: "_handle_arrive_check_in",
         EventType.CHECK_IN_COMPLETED: "_handle_checkin_completed",
         EventType.SECURITY_COMPLETED: "_handle_security_completed",
+        EventType.ARRIVE_GATE: "_handle_arrive_gate",
         EventType.BOARDING_STARTED: "_handle_boarding_started",
         EventType.PASSENGER_BOARDED: "_handle_passenger_boarded",
         EventType.AIRCRAFT_TAKE_OFF: "_handle_aircraft_take_off",
@@ -31,6 +33,9 @@ class PassengerHandler:
         if flight:
             passenger.current_airport = flight.origin_airport
 
+    def _handle_arrive_check_in(self, event):
+        event.entity.state = PassengerState.CHECK_IN
+
     def _handle_checkin_completed(self, event):
         passenger = event.entity
         if passenger.current_booking:
@@ -42,6 +47,15 @@ class PassengerHandler:
         flight = event.payload.get("flight")
         passenger.current_gate = flight.gate
         passenger.state = PassengerState.WAITING_GATE
+
+    def _handle_arrive_gate(self, event):
+        passenger = event.entity
+        flight = event.payload.get("flight")
+        passenger.current_gate = flight.gate if flight else passenger.current_gate
+        if flight is not None and flight.status == FlightStatus.BOARDING:
+            passenger.state = PassengerState.BOARDING
+        else:
+            passenger.state = PassengerState.WAITING_GATE
 
     def _handle_boarding_started(self, event):
         if event.entity.state == PassengerState.WAITING_GATE:
