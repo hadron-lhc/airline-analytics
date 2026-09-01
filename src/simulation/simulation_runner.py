@@ -1,4 +1,5 @@
 from copy import deepcopy
+from datetime import datetime, timedelta
 
 from .event import SimulationEvent
 from .generators.passenger_journey import (
@@ -18,6 +19,29 @@ from ..world.models.queue_service_model import QueueServiceModel
 
 from ..enums.simulation_enums import EventType
 from ..enums.world_enums import FlightMilestone
+
+
+# Margen entre el último embarque y el despegue (stow, cierre de rampa, taxi).
+_BUFFER_SECONDS = 20 * 60
+
+# Perfil de staffing (servidores, capacidad) por franja horaria. Durante las
+# ondas de salida se abren más puntos de servicio; de noche la operación
+# queda mínima.
+_PEAK_HOURS_START = {6, 7, 8, 9, 10, 16, 17, 18, 19, 20}
+_NIGHT_HOURS = {0, 1, 2, 3, 4, 22, 23}
+
+_SECURITY_PROFILE = {"peak": (6, 28), "off": (4, 20), "night": (2, 10)}
+_CHECKIN_PROFILE = {"peak": (5, 24), "off": (3, 18), "night": (2, 8)}
+
+
+def _staffing_for(time_, profile: dict) -> tuple[int, int]:
+    """Devuelve (service_points, capacity) para una hora dada del día."""
+    hour = time_.hour
+    if hour in _PEAK_HOURS_START:
+        return profile["peak"]
+    if hour in _NIGHT_HOURS:
+        return profile["night"]
+    return profile["off"]
 
 
 class SimulationRunner:
@@ -43,6 +67,42 @@ class SimulationRunner:
     # ==========================================================
     # CHECK-IN QUEUE
     # ==========================================================
+
+    def _configure_service(
+        self,
+        queue,
+        current_time: datetime,
+        profile: dict,
+    ) -> None:
+        """Ajusta el staffing de una cola según la hora del día.
+
+        Al cambiar el número de puestos se mantiene la lista de
+        ``server_available_times`` sincronizada (reservas de pasajeros en
+        cola): solo se retiran puestos libres, y los nuevos puestos se
+        abren disponibles.
+        """
+        service_points, capacity = _staffing_for(current_time, profile)
+
+        queue.capacity = capacity
+
+        if service_points == queue.service_points:
+            return
+
+        avail = list(queue.server_available_times)
+
+        if len(avail) > service_points:
+            busy_up_to = current_time
+            kept = [
+                t for t in avail if t is not None and t <= busy_up_to
+            ]
+            kept.extend(t for t in avail if t is None)
+            avail = kept[:service_points]
+
+        if len(avail) < service_points:
+            avail.extend([None] * (service_points - len(avail)))
+
+        queue.service_points = service_points
+        queue.server_available_times = avail
 
     def _get_checkin_queue(
         self,
@@ -121,6 +181,12 @@ class SimulationRunner:
 
             checkin_queue = self._get_checkin_queue(airport_code)
 
+            self._configure_service(
+                checkin_queue,
+                context.check_in_arrival,
+                _CHECKIN_PROFILE,
+            )
+
             checkin_result = checkin_queue.process(
                 passenger=context.booking.passenger,
                 arrival_time=context.check_in_arrival,
@@ -146,6 +212,12 @@ class SimulationRunner:
 
             security_queue = self._get_security_queue(airport_code)
 
+            self._configure_service(
+                security_queue,
+                context.security_arrival,
+                _SECURITY_PROFILE,
+            )
+
             security_result = security_queue.process(
                 passenger=context.booking.passenger,
                 arrival_time=context.security_arrival,
@@ -168,6 +240,42 @@ class SimulationRunner:
             }.values()
         )
 
+        # ------------------------------------------------------
+        # 6a. BOARDING-GATED DEPARTURE (on-time)
+        # ------------------------------------------------------
+        # El despegue real depende del fin del embarque: si el último pasajero
+        # embarcó tarde (colas, remplazos), la rueda-despega se retrasa. Los
+        # hitos TAKE_OFF/LANDED se desplazan ANTES de generar los eventos del
+        # vuelo y de la fase de llegada, para que todo el timeline sea
+        # consistente ("en el aire" solo tras el despegue real).
+
+        last_boarded: dict[str, datetime] = {}
+
+        for event in all_events:
+            if event.event_type != EventType.PASSENGER_BOARDED:
+                continue
+            fn = event.payload.get("flight_number")
+            if isinstance(fn, str) and (
+                fn not in last_boarded or event.event_time > last_boarded[fn]
+            ):
+                last_boarded[fn] = event.event_time
+
+        for flight in flights:
+            latest = last_boarded.get(flight.flight_number)
+            if latest is None:
+                continue
+
+            scheduled = flight.get_milestone(FlightMilestone.TAKE_OFF)
+            actual = max(scheduled, latest + timedelta(seconds=_BUFFER_SECONDS))
+
+            if actual == scheduled:
+                continue
+
+            flight.milestones[FlightMilestone.TAKE_OFF] = actual
+            flight.milestones[FlightMilestone.LANDED] = actual + (
+                flight.scheduled_arrival - flight.scheduled_departure
+            )
+
         for flight in flights:
             all_events.extend(generate_flight_journey(flight))
 
@@ -182,6 +290,13 @@ class SimulationRunner:
             for event in all_events
             if event.event_type == EventType.PASSENGER_BOARDED
         }
+
+        checked_baggage_by_flight: dict[str, int] = {}
+        for booking in bookings:
+            if not booking.checked_baggage:
+                continue
+            fn = booking.flight.flight_number
+            checked_baggage_by_flight[fn] = checked_baggage_by_flight.get(fn, 0) + 1
 
         for booking in bookings:
             if booking.passenger.passenger_id not in boarded_ids:
@@ -201,6 +316,9 @@ class SimulationRunner:
                 booking=booking,
                 airport_layout=destination_layouts[destination_code],
                 landed_time=landed_time,
+                baggage_load=checked_baggage_by_flight.get(
+                    flight.flight_number, 0
+                ),
             )
 
             all_events.extend(arrival_events)

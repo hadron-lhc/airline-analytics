@@ -40,6 +40,27 @@ def _generate_real_routes(all_codes):
     return routes
 
 
+def _departure_slot() -> tuple[int, int]:
+    """Elige hora/minuto de salida según bancos de ondas realistas.
+
+    La mayoría de los vuelos despegan en dos ondas (mañana 06-10 y tarde
+    16-20); un goteo a mitad del día mantiene la operación entre ondas y
+    la noche queda cerrada.
+    """
+    roll = random.random()
+
+    if roll < 0.42:
+        hour = random.randint(6, 10)
+    elif roll < 0.84:
+        hour = random.randint(16, 20)
+    else:
+        hour = random.randint(11, 15)
+
+    minute = random.choice([0, 15, 30, 45])
+
+    return hour, minute
+
+
 def _create_flight(routes, base_date):
     for _ in range(10):
         origin_iata, dest_iata, duration_min = random.choice(routes)
@@ -50,8 +71,7 @@ def _create_flight(routes, base_date):
         airline = random.choice(AIRLINE_CODES)
         flight_number = f"{airline}{random.randint(100, 999)}"
 
-        departure_hour = random.randint(5, 22)
-        departure_minute = random.choice([0, 15, 30, 45])
+        departure_hour, departure_minute = _departure_slot()
 
         scheduled_departure = base_date + timedelta(
             hours=departure_hour,

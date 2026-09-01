@@ -19,6 +19,7 @@ class EventType(Enum):
     ARRIVE_GATE = "Arrive_Gate"
 
     BOARDING_STARTED = "Boarding_Started"
+    DOORS_CLOSED = "Doors_Closed"
     PASSENGER_BOARDED = "Passenger_Boarded"
 
     AIRCRAFT_TAKE_OFF = "Aircraft_Take_Off"

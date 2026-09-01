@@ -9,13 +9,17 @@ Writes a self-contained static site into ``web/dist/``:
     dist/index.html
     dist/js/{app.js,style.css}
     dist/vendor/chart.umd.js
-    dist/data/meta.json
-    dist/data/snapshots.json
+    dist/data/meta.json (+ .json.gz)
+    dist/data/snapshots.json (+ .json.gz)
+    dist/data/report.json
+    dist/data/simulation.json.gz          # bundle único {meta, snapshots, report}
+    dist/report.md                        # informe operativo legible
 """
 
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import math
@@ -33,6 +37,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.enums.simulation_enums import EventType
 from src.enums.world_enums import PassengerState
+from src.analysis.report_builder import build_report, render_markdown
 from src.loaders.airport_layout_loader import load_airport_layout
 STATIC_DIR = WEB_DIR / "static"
 DIST_DIR = WEB_DIR / "dist"
@@ -117,6 +122,18 @@ def _gate_for(passenger) -> str | None:
 
 _geometry_cache: dict[str, dict] = {}
 
+# Scatter spread (rx%, ry%) per zone around its real position. Used both to
+# draw passenger points (`build_airport_points`) and to size the gate zone
+# box so it envelopes every gate point (`_layout_geometry`).
+_ZONE_SCATTER = {
+    "entrance": (4.5, 3.0),
+    "check_in": (6.5, 4.5),
+    "security": (6.5, 4.5),
+    "gate": (4.0, 6.0),
+    "destination": (6.0, 4.0),
+    "exited": (4.0, 3.0),
+}
+
 
 def _layout_geometry(airport_code: str) -> dict:
     """Zone/gate coordinates in [0, 100]² for an airport floor plan.
@@ -164,16 +181,17 @@ def _layout_geometry(airport_code: str) -> dict:
         zone_centers["exited"] = zone_centers.pop("exit")
 
     # Room spread ("r") per zone: fixed for halls, bounding box for gates.
-    # The spreads are deliberately moderate and the gate box is vertically
-    # capped so "Salidas" (gate) never crowds the "Llegadas" (destination /
-    # exited) boxes near the bottom of the plan.
-    GATE_ROW_MAX_RY = 26.0
+    # The gate box is sized to *envelope* every real gate plus the scatter
+    # used to draw gate passengers (`_ZONE_SCATTER["gate"]`), so people at
+    # the extreme gates stay inside the "Puertas" rectangle (they used to pop
+    # out above/below it because the box radius was capped too low).
+    gate_rx, gate_ry = _ZONE_SCATTER["gate"]
     spreads = {
         "entrance": (5.0, 3.5),
         "check_in": (7.0, 5.0),
         "security": (7.0, 5.0),
-        "destination": (8.0, 5.0),
-        "exited": (4.0, 3.0),
+        "destination": (6.5, 4.5),
+        "exited": (4.5, 3.5),
     }
     if gates:
         xs = [x for x, _ in gates.values()]
@@ -183,8 +201,8 @@ def _layout_geometry(airport_code: str) -> dict:
             (min(ys) + max(ys)) / 2,
         )
         spreads["gate"] = (
-            max((max(xs) - min(xs)) / 2 + 1.0, 8.0),
-            min(max((max(ys) - min(ys)) / 2 + 1.5, 12.0), GATE_ROW_MAX_RY),
+            max((max(xs) - min(xs)) / 2 + gate_rx + 1.0, 8.0),
+            max((max(ys) - min(ys)) / 2 + gate_ry + 0.5, 12.0),
         )
     else:
         gate_c = zone_centers.get("gate") or (70.0, 40.0)
@@ -193,17 +211,14 @@ def _layout_geometry(airport_code: str) -> dict:
     if "gate" not in zone_centers:
         zone_centers["gate"] = gate_c
 
-    # Separate the arrival-side boxes so "Llegadas" (destination) and
-    # "Salida" (exited) read as distinct blocks with a visible gap, instead
-    # of overlapping in the bottom-left corner.
+    # Arrivals row: "Llegadas" (destination) and "Salida" (exited) are
+    # centered on the bottom row instead of hugging the left edge of the plan
+    # (their real-layout x is ~2-16%, which left the bottom-left corner
+    # crowded while the right side was empty). They sit below the tallest
+    # gate box (JFK/LAX/CDG reach y≈86) so neither row ever touches.
     if "destination" in zone_centers and "exited" in zone_centers:
-        dest_c = zone_centers["destination"]
-        exit_c = zone_centers["exited"]
-        need_gap = spreads["destination"][0] + spreads["exited"][0] + 1.5
-        zone_centers["exited"] = (
-            min(exit_c[0], dest_c[0] - need_gap),
-            exit_c[1],
-        )
+        zone_centers["destination"] = (42.0, 92.0)
+        zone_centers["exited"] = (60.0, 92.0)
 
     zones = {
         z: {"c": [round(zone_centers[z][0], 2), round(zone_centers[z][1], 2)],
@@ -285,6 +300,22 @@ def build_passenger_spatial(passengers, flights) -> dict:
 # ----------------------------------------------------------------------
 
 
+def _percentiles(values: list[float], quantiles: tuple[float, ...]):
+    """Percentiles lineales de una lista (devuelve 0.0 si está vacía)."""
+    if not values:
+        return tuple(0.0 for _ in quantiles)
+    ordered = sorted(values)
+    n = len(ordered)
+    out = []
+    for q in quantiles:
+        idx = q * (n - 1)
+        lo = int(idx)
+        hi = min(lo + 1, n - 1)
+        frac = idx - lo
+        out.append(ordered[lo] + (ordered[hi] - ordered[lo]) * frac)
+    return tuple(out)
+
+
 class _MetricsTracker:
     """Accumulates operational/security/check-in/SLA/cohort metrics in one pass.
 
@@ -294,12 +325,12 @@ class _MetricsTracker:
     previous O(snapshots * events)).
     """
 
-    def __init__(self, airports: list[str]):
+    def __init__(self, airports: list[str], flights: list | None = None):
         self.airports = list(airports)
 
         def _queue_state():
             return {"processed": 0, "waits": [], "max_wait": 0.0,
-                    "congested": 0, "in_queue": 0}
+                    "congested": 0, "in_queue": 0, "hours": {}}
 
         self._security = {code: _queue_state() for code in self.airports}
         self._checkin = {code: _queue_state() for code in self.airports}
@@ -315,8 +346,26 @@ class _MetricsTracker:
         self.waited_total = 0
         self.high_pressure = 0
 
-        # Puntualidad por vuelo
+        # Puntualidad y load factor por vuelo (datos estáticos del día)
         self._flight: dict[str, dict] = {}
+        self._flight_schedule: dict[str, dict] = {}
+        if flights:
+            for flight in flights:
+                from src.enums.world_enums import FlightMilestone
+
+                actual = flight.get_milestone(FlightMilestone.TAKE_OFF)
+                scheduled = flight.scheduled_departure
+                delay_min = (actual - scheduled).total_seconds() / 60.0
+                self._flight_schedule[flight.flight_number] = {
+                    "origin": flight.origin_airport.iata_code,
+                    "destination": flight.destination_airport.iata_code,
+                    "dep": scheduled.strftime("%H:%M"),
+                    "arr": flight.scheduled_arrival.strftime("%H:%M"),
+                    "capacity": flight.capacity,
+                    "load_factor": round(flight.load_factor * 100, 1),
+                    "on_time": delay_min <= 15.0,
+                    "delay_min": round(max(delay_min, 0.0), 1),
+                }
 
         # Cohortes por motivo de viaje
         self._cohorts: dict[str, dict] = {}
@@ -344,7 +393,7 @@ class _MetricsTracker:
         return f
 
     def _record_wait(self, state, payload, congested_key, pressure_key,
-                     purpose) -> None:
+                     purpose, hour) -> None:
         wait = float(payload.get("queue_wait") or 0.0)
         s = state
         s["processed"] += 1
@@ -355,6 +404,13 @@ class _MetricsTracker:
             s["congested"] += 1
         if s["in_queue"]:
             s["in_queue"] -= 1
+
+        # Heatmap aeropuerto × hora (esperas por franja horaria).
+        bucket = s["hours"].setdefault(hour, {"n": 0, "wait_sum": 0.0, "max_wait": 0.0})
+        bucket["n"] += 1
+        bucket["wait_sum"] += wait
+        if wait > bucket["max_wait"]:
+            bucket["max_wait"] = wait
 
         # SLA: censado solo sobre pasajeros que efectivamente esperaron.
         if wait > 0:
@@ -372,6 +428,7 @@ class _MetricsTracker:
         t = event.event_type
         payload = event.payload
         purpose = self._purpose(event)
+        hour = event.event_time.hour
 
         if t == EventType.SECURITY_STARTED:
             apt = payload.get("airport")
@@ -382,7 +439,8 @@ class _MetricsTracker:
             apt = payload.get("airport")
             if apt in self._security:
                 self._record_wait(self._security[apt], payload,
-                                  "security_congested", "time_pressure", purpose)
+                                  "security_congested", "time_pressure",
+                                  purpose, hour)
 
         elif t == EventType.ARRIVE_CHECK_IN:
             apt = payload.get("airport")
@@ -393,7 +451,8 @@ class _MetricsTracker:
             apt = payload.get("airport")
             if apt in self._checkin:
                 self._record_wait(self._checkin[apt], payload,
-                                  "checkin_congested", "time_pressure", purpose)
+                                  "checkin_congested", "time_pressure",
+                                  purpose, hour)
 
         elif t == EventType.ARRIVE_AIRPORT:
             pid = self._pid(event)
@@ -438,16 +497,26 @@ class _MetricsTracker:
     def _queue_snapshot(self, states) -> dict:
         out = {}
         for code, s in states.items():
-            avg = sum(s["waits"]) / len(s["waits"]) if s["waits"] else 0.0
+            waits = s["waits"]
+            avg = sum(waits) / len(waits) if waits else 0.0
             pct_congested = (
                 (s["congested"] / s["processed"]) if s["processed"] else 0.0
             )
+            p50, p90 = _percentiles(waits, (0.50, 0.90))
+            hours = {str(h): {
+                "n": b["n"],
+                "wait_avg_s": round(b["wait_sum"] / b["n"], 1),
+                "wait_max_s": round(b["max_wait"], 1),
+            } for h, b in sorted(s["hours"].items())}
             out[code] = {
                 "processed": s["processed"],
                 "wait_avg_s": round(avg, 1),
                 "wait_max_s": round(s["max_wait"], 1),
+                "wait_p50_s": round(p50, 1),
+                "wait_p90_s": round(p90, 1),
                 "congested_pct": round(pct_congested * 100, 1),
                 "in_queue": s["in_queue"],
+                "hours": hours,
             }
         return out
 
@@ -456,6 +525,38 @@ class _MetricsTracker:
             sum(self._origin_min) / len(self._origin_min)
             if self._origin_min
             else 0.0
+        )
+
+        # Puntualidad global y load factor medio.
+        flight_out = {}
+        on_time_n = 0
+        scheduled_n = 0
+        for fn, f in self._flight.items():
+            schedule = self._flight_schedule.get(fn)
+            if schedule is None:
+                flight_out[fn] = dict(f)
+                continue
+            entry = {**schedule, **f}
+            flight_out[fn] = entry
+            if entry["on_time"]:
+                on_time_n += 1
+            scheduled_n += 1
+
+        load_factors = [
+            f["load_factor"]
+            for f in flight_out.values()
+            if isinstance(f.get("load_factor"), (int, float))
+        ]
+        load_avg = (
+            sum(load_factors) / len(load_factors) if load_factors else 0.0
+        )
+        delay_vals = [
+            f["delay_min"]
+            for f in flight_out.values()
+            if isinstance(f.get("delay_min"), (int, float))
+        ]
+        delay_avg = (
+            sum(delay_vals) / len(delay_vals) if delay_vals else 0.0
         )
 
         boarding_stress = self.boarding_stress
@@ -491,9 +592,12 @@ class _MetricsTracker:
                 "missed": self.missed,
                 "completed": len(self._origin_min),
                 "avg_origin_min": round(avg_origin, 1),
-                "flight": {
-                    fn: dict(f) for fn, f in sorted(self._flight.items())
-                },
+                "on_time_rate": round(
+                    (on_time_n / scheduled_n) * 100.0 if scheduled_n else 0.0, 1
+                ),
+                "load_factor_avg": round(load_avg, 1),
+                "avg_delay_min": round(delay_avg, 1),
+                "flight": flight_out,
             },
             "stress": {
                 "boarding_avg": round(boarding_avg, 1),
@@ -513,13 +617,13 @@ class _MetricsTracker:
         }
 
 
-def build_metrics(events, now: datetime, airports: list[str]) -> dict:
+def build_metrics(events, now: datetime, airports: list[str], flights=None) -> dict:
     """Aggregate per-moment metrics from the full event log up to ``now``.
 
     Uses the *original* events (with rich payloads including queue metrics),
     not the replayed ones.
     """
-    tracker = _MetricsTracker(airports)
+    tracker = _MetricsTracker(airports, flights=flights)
     for e in events:
         if e.event_time > now:
             break
@@ -546,16 +650,6 @@ def build_flight_statuses(world) -> dict:
 # ----------------------------------------------------------------------
 
 MAX_POINTS_PER_ZONE = 60
-
-# Scatter spread (rx%, ry%) per zone around its real position.
-_ZONE_SCATTER = {
-    "entrance": (5.0, 4.0),
-    "check_in": (8.0, 6.0),
-    "security": (8.0, 6.0),
-    "gate": (4.0, 6.0),
-    "destination": (9.0, 6.0),
-    "exited": (5.0, 4.0),
-}
 
 
 def _scatter(pid: str) -> tuple[float, float]:
@@ -675,6 +769,42 @@ def timeline_ticks(start: datetime, end: datetime, step_min: int) -> list[dateti
     return ticks
 
 
+# Franjas usadas por el paso adaptativo (mismas ondas que el staffing).
+_PEAK_HOURS = {6, 7, 8, 9, 10, 16, 17, 18, 19, 20}
+_NIGHT_HOURS = {0, 1, 2, 3, 4, 22, 23}
+
+
+def _adaptive_step(hour: int, base_step: int) -> int:
+    """Paso de snapshot (min) según la hora: fino en ondas, ancho de noche."""
+    if hour in _PEAK_HOURS:
+        return max(base_step // 2, 1)
+    if hour in _NIGHT_HOURS:
+        return 15
+    return base_step
+
+
+def timeline_ticks_adaptive(
+    start: datetime,
+    end: datetime,
+    base_step: int = 5,
+) -> list[datetime]:
+    """Ticks con paso variable según la hora del día.
+
+    En las ondas de salida (06-10 y 16-20) el paso se reduce a la mitad
+    (mínimo 1 min); fuera de ondas usa ``base_step``; de noche 15 min.
+    """
+    ticks = []
+    t = start.replace(second=0, microsecond=0)
+    if t < start:
+        t += timedelta(minutes=1)
+    while t <= end:
+        ticks.append(t)
+        t += timedelta(minutes=_adaptive_step(t.hour, base_step))
+    if ticks[-1] < end:
+        ticks.append(end)
+    return ticks
+
+
 # ----------------------------------------------------------------------
 # Build driver
 # ----------------------------------------------------------------------
@@ -688,11 +818,14 @@ def _airport_names() -> dict:
 
 def run(
     step_min: int = 5,
-    n_passengers: int = 1000,
+    n_passengers: int = 6000,
     saturate: bool = False,
     margin: int | None = None,
     full_day: bool = False,
     seed: int | None = None,
+    adaptive: bool | None = None,
+    out_file: str | None = None,
+    report: bool = True,
 ) -> int:
     if full_day:
         from src.simulation.world_factory import generate_world
@@ -732,9 +865,15 @@ def run(
     start = events[0].event_time
     end = events[-1].event_time
 
-    ticks = timeline_ticks(start, end, step_min)
+    if adaptive is None:
+        adaptive = full_day
 
-    tracker = _MetricsTracker(all_airport_codes)
+    if adaptive:
+        ticks = timeline_ticks_adaptive(start, end, step_min)
+    else:
+        ticks = timeline_ticks(start, end, step_min)
+
+    tracker = _MetricsTracker(all_airport_codes, flights=world.flights)
     event_index = 0
     snapshots = []
     for t in ticks:
@@ -773,10 +912,16 @@ def run(
         )
 
     meta = build_meta(world, result, airport_names)
-    return _write(snapshots, meta)
+
+    report_data = None
+    if report and snapshots:
+        report_data = build_report(meta, snapshots[-1]["metrics"], world, result)
+
+    return _write(snapshots, meta, report=report_data, out_file=out_file)
 
 
-def _write(snapshots: list[dict], meta: dict) -> int:
+def _write(snapshots: list[dict], meta: dict, report: dict | None = None,
+           out_file: str | None = None) -> int:
     # wipe and recreate dist
     if DIST_DIR.exists():
         shutil.rmtree(DIST_DIR)
@@ -789,6 +934,29 @@ def _write(snapshots: list[dict], meta: dict) -> int:
     (DATA_DIR / "meta.json").write_text(
         json.dumps(meta, ensure_ascii=False), encoding="utf-8"
     )
+
+    # Bundle único {meta, snapshots, report} + variantes gzip (la web prefiere
+    # cargar "*.json.gz" por red y descomprimir en el navegador).
+    bundle: dict = {"meta": meta, "snapshots": snapshots}
+    if report is not None:
+        bundle["report"] = report
+        (DATA_DIR / "report.json").write_text(
+            json.dumps(report, ensure_ascii=False), encoding="utf-8"
+        )
+        (DIST_DIR / "report.md").write_text(
+            render_markdown(report), encoding="utf-8"
+        )
+
+    _write_json_gz(DATA_DIR / "snapshots.json.gz", snapshots)
+    _write_json_gz(DATA_DIR / "meta.json.gz", meta)
+    _write_json_gz(DATA_DIR / "simulation.json.gz", bundle)
+
+    if out_file:
+        out_path = Path(out_file)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(
+            json.dumps(bundle, ensure_ascii=False), encoding="utf-8"
+        )
 
     dst_js = DIST_DIR / "js"
     dst_js.mkdir(parents=True)
@@ -803,10 +971,16 @@ def _write(snapshots: list[dict], meta: dict) -> int:
     return len(snapshots)
 
 
+def _write_json_gz(path: Path, obj) -> None:
+    """Escribe ``obj`` como JSON comprimido (gzip) en ``path``."""
+    with gzip.open(path, "wt", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--step-min", type=int, default=5, help="Snapshot bucket (min)")
-    parser.add_argument("--n-passengers", type=int, default=1000)
+    parser.add_argument("--n-passengers", type=int, default=6000)
     parser.add_argument(
         "--saturate",
         action="store_true",
@@ -821,13 +995,31 @@ def main() -> None:
     parser.add_argument(
         "--full-day",
         action="store_true",
-        help="Build from the full network (12 airports, 56 flights) instead of the hub.",
+        help="Build from the full network (12 airports, 60 flights) instead of the hub.",
     )
     parser.add_argument(
         "--seed",
         type=int,
         default=None,
         help="Seed to make the generated world reproducible.",
+    )
+    parser.add_argument(
+        "--adaptive",
+        action="store_true",
+        default=None,
+        help="Variable snapshot step (fine in peak waves, coarse at night). "
+        "Enabled by default on --full-day.",
+    )
+    parser.add_argument(
+        "--out-file",
+        type=str,
+        default=None,
+        help="Also write the monolithic simulation JSON bundle to this path.",
+    )
+    parser.add_argument(
+        "--no-report",
+        action="store_true",
+        help="Skip building the operational report (report.json / report.md).",
     )
     parser.add_argument(
         "--sql",
@@ -843,8 +1035,13 @@ def main() -> None:
         margin=args.margin,
         full_day=args.full_day,
         seed=args.seed,
+        adaptive=args.adaptive,
+        out_file=args.out_file,
+        report=not args.no_report,
     )
     print(f"Built web/dist with {n} snapshots.")
+    if args.adaptive is None and args.full_day:
+        print("Using adaptive snapshot step (peak ~2-3 min, night 15 min).")
 
     if args.sql:
         from src.simulation.result import load_events_from_json  # noqa

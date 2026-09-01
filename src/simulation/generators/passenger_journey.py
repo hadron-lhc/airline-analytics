@@ -42,7 +42,7 @@ def _boarding_window(flight, boarding_group):
     una fracción de ese tramo.
     """
     boarding_start = flight.get_milestone(FlightMilestone.BOARDING_START)
-    doors_close = flight.scheduled_departure - timedelta(minutes=15)
+    doors_close = flight.get_milestone(FlightMilestone.DOORS_CLOSED)
 
     span = (doors_close - boarding_start).total_seconds()
 
@@ -268,7 +268,7 @@ class PassengerJourney:
         checkin_waiting_result = None
 
         if queue_wait > 0:
-            boarding_close = flight.scheduled_departure - timedelta(minutes=15)
+            boarding_close = flight.get_milestone(FlightMilestone.DOORS_CLOSED)
 
             time_remaining = (boarding_close - check_in_completed).total_seconds()
 
@@ -422,7 +422,7 @@ class PassengerJourney:
         waiting_result = None
 
         if security_result.waiting_time > 0:
-            boarding_close = flight.scheduled_departure - timedelta(minutes=15)
+            boarding_close = flight.get_milestone(FlightMilestone.DOORS_CLOSED)
 
             time_remaining = (boarding_close - security_started).total_seconds()
 
@@ -516,7 +516,7 @@ class PassengerJourney:
         # BOARDING RESULT
         # ======================================================
 
-        boarding_close = flight.scheduled_departure - timedelta(minutes=15)
+        boarding_close = flight.get_milestone(FlightMilestone.DOORS_CLOSED)
 
         boarding_group = context.booking.boarding_group
 
@@ -535,6 +535,20 @@ class PassengerJourney:
             # Así la secuencia de embarque respeta la prioridad del grupo.
             boarded_at = max(gate_arrival, group_window_start)
 
+            # Equipaje: guardar el equipaje de cabina (y facturar) añade unos
+            # segundos de embarque. Nunca retrasa más allá del cierre (un
+            # pasajero con poco margen embarca justo hasta doors close).
+            stow_seconds = float(
+                context.booking.carry_on_baggage * 8.0
+                + context.booking.checked_baggage * 4.0
+            )
+            stow_left = max(
+                (boarding_close - boarded_at).total_seconds(),
+                0.0,
+            )
+            stow_seconds = min(stow_seconds, stow_left)
+            boarded_at = boarded_at + timedelta(seconds=stow_seconds)
+
             events.append(
                 SimulationEvent(
                     event_time=boarded_at,
@@ -549,6 +563,7 @@ class PassengerJourney:
                         "group_window_start": group_window_start,
                         "group_window_end": group_window_end,
                         "boarding_deadline": boarding_close,
+                        "stow_time": round(stow_seconds, 1),
                         "status": "boarded",
                         "stress": movement.final_stress,
                     },
@@ -595,6 +610,7 @@ class PassengerJourney:
         airport_layout: AirportLayout,
         landed_time: datetime,
         stress_event: StressEvent | None = None,
+        baggage_load: int = 0,
     ) -> list[SimulationEvent]:
         """
         Genera la fase de llegada de un pasajero que ya embarcó.
@@ -607,8 +623,11 @@ class PassengerJourney:
 
         - El desembarque ocurre `landed_time` más un delta proporcional a
           la fila del asiento (los de adelante salen antes).
-        - Tras desembarcar, el pasajero camina desde la recogida de
-          equipaje hacia la salida, según su velocidad de marcha.
+        - Los pasajeros con equipaje facturado esperan en la cinta de
+          recogida un tiempo proporcional a la carga del vuelo (`baggage_load`)
+          y a su fila; los de solo equipaje de mano pasan directos.
+        - Tras eso, el pasajero camina desde la recogida de equipaje hacia
+          la salida, según su velocidad de marcha.
 
         Los pasajeros que NO embarcaron (MISSED_FLIGHT) no pasan por aquí.
         """
@@ -665,6 +684,14 @@ class PassengerJourney:
         baggage_claim = airport_layout.get_location("baggage_claim")
         exit_location = airport_layout.get_location("exit")
 
+        # Espera de equipaje (solo pasajeros con maleta facturada). La cinta
+        # demora según la carga del vuelo; quien sale del avión primero suele
+        # esperar menos. Los vuelos sin carga (todo carry-on) no esperan.
+        baggage_wait = 0.0
+        if booking.checked_baggage and baggage_load > 0:
+            unloading_seconds = 45.0 + baggage_load * 3.5
+            baggage_wait = unloading_seconds * (row / 30.0)
+
         movement = self.movement.move(
             passenger=passenger,
             origin=baggage_claim,
@@ -673,7 +700,7 @@ class PassengerJourney:
         )
 
         exit_airport_time = exit_aircraft_time + timedelta(
-            seconds=movement.walking_time
+            seconds=baggage_wait + movement.walking_time
         )
 
         payload = base_payload()
@@ -685,6 +712,7 @@ class PassengerJourney:
                 "walking_time": movement.walking_time,
                 "stress": movement.final_stress,
                 "checked_baggage": booking.checked_baggage,
+                "baggage_wait": round(baggage_wait, 1),
             }
         )
 

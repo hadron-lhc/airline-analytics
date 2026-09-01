@@ -7,6 +7,7 @@ from ..event import SimulationEvent
 # Relación entre los hitos operativos del vuelo y los eventos de simulación
 MILESTONE_EVENT_MAP = {
     FlightMilestone.BOARDING_START: EventType.BOARDING_STARTED,
+    FlightMilestone.DOORS_CLOSED: EventType.DOORS_CLOSED,
     FlightMilestone.TAKE_OFF: EventType.AIRCRAFT_TAKE_OFF,
     FlightMilestone.LANDED: EventType.AIRCRAFT_LANDED,
 }
@@ -15,6 +16,7 @@ MILESTONE_EVENT_MAP = {
 # Orden cronológico del ciclo del vuelo
 FLIGHT_MILESTONES = [
     FlightMilestone.BOARDING_START,
+    FlightMilestone.DOORS_CLOSED,
     FlightMilestone.TAKE_OFF,
     FlightMilestone.LANDED,
 ]

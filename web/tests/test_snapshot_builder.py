@@ -133,6 +133,71 @@ def test_airport_points_sampling_and_determinism():
 
 
 # ----------------------------------------------------------------------
+# Floor-plan geometry: gate box envelopes gates; arrivals row centered
+# ----------------------------------------------------------------------
+
+
+def _box(c, r):
+    return (c[0] - r[0], c[0] + r[0], c[1] - r[1], c[1] + r[1])
+
+
+def _inside(x, y, b, tol=0.01):
+    return b[0] - tol <= x <= b[1] + tol and b[2] - tol <= y <= b[3] + tol
+
+
+_GEO_CODES = ["EZE", "MIA", "JFK", "LAX", "MAD", "BCN", "CDG",
+              "LHR", "GRU", "MEX", "BOG", "SCL"]
+
+
+def test_gate_box_envelopes_real_gates():
+    for code in _GEO_CODES:
+        geo = bs._layout_geometry(code)
+        gate_box = _box(geo["zones"]["gate"]["c"], geo["zones"]["gate"]["r"])
+        for gate_code, (gx, gy) in geo["gates"].items():
+            # the gate position and its outer scatter points stay inside
+            assert _inside(gx, gy, gate_box), (code, gate_code)
+            rx, ry = bs._ZONE_SCATTER["gate"]
+            assert _inside(gx + rx, gy + ry, gate_box), (code, gate_code)
+
+
+def test_arrivals_row_centered_no_left_hug():
+    for code in _GEO_CODES:
+        geo = bs._layout_geometry(code)
+        zones = geo["zones"]
+        assert zones["destination"]["c"][0] > 30, code
+        assert zones["exited"]["c"][0] > 30, code
+        # both boxes fully inside the plan (0..100)
+        for z in ("destination", "exited"):
+            b = _box(zones[z]["c"], zones[z]["r"])
+            assert 0.0 <= b[0] and b[1] <= 100.0, (code, z)
+            assert 0.0 <= b[2] and b[3] <= 100.0, (code, z)
+        # and they don't touch each other
+        d, e = zones["destination"], zones["exited"]
+        db, eb = _box(d["c"], d["r"]), _box(e["c"], e["r"])
+        assert db[1] < eb[0], code
+
+
+def test_airport_points_inside_their_zone_boxes():
+    world, result = _small_result(60)
+    replay = SimulationReplay(result)
+    start = result.events[0].event_time
+    mid = start + (result.events[-1].event_time - start) / 2
+    replay.at(mid)
+    passengers = replay.current_world.passengers
+    flights = replay.current_world.flights
+
+    for code in ("JFK", "EZE", "MIA"):
+        geo = bs._layout_geometry(code)
+        floor = bs.build_airport_points(passengers, flights, code)
+        for pt in floor["points"]:
+            zone = geo["zones"].get(pt["zone"])
+            if zone is None:
+                continue
+            b = _box(zone["c"], zone["r"])
+            assert _inside(pt["x"], pt["y"], b), (code, pt)
+
+
+# ----------------------------------------------------------------------
 # build_metrics
 # ----------------------------------------------------------------------
 
@@ -223,3 +288,115 @@ def test_full_build_writes_dist(tmp_path, monkeypatch):
     assert (tmp_path / "data" / "meta.json").exists()
     assert (tmp_path / "js" / "app.js").exists()
     assert (tmp_path / "vendor" / "chart.umd.js").exists()
+
+
+# ----------------------------------------------------------------------
+# Bundle único {meta, snapshots, report} + variantes gzip
+# ----------------------------------------------------------------------
+
+
+def test_write_creates_report_and_gzip_bundle(tmp_path, monkeypatch):
+    import json
+    import gzip
+
+    import web.build_snapshots as module
+
+    monkeypatch.setattr(module, "DIST_DIR", tmp_path)
+    monkeypatch.setattr(module, "DATA_DIR", tmp_path / "data")
+
+    snapshots = [{"t": "2026-07-13T03:00:00", "global": {}}]
+    meta = {"start": "x", "end": "y", "passengers": 1, "flights": 1,
+            "airports": {}, "total_events": 1, "title": "Prueba"}
+    report = {
+        "meta": {"title": "Prueba", "date": "2026-07-13", "start": "03:00",
+                 "end": "11:00", "passengers": 1, "flights": 1,
+                 "airports": {}, "events": 1},
+        "resumen": {"boarded": 1, "missed": 0, "missed_rate": 0.0,
+                    "completed": 1, "completed_pct": 100.0,
+                    "avg_origin_min": 60.0, "on_time_rate": 100.0,
+                    "avg_delay_min": 0.0, "load_factor_avg": 50.0,
+                    "boarding_avg_stress": 0.0, "high_pressure_pct": 0.0},
+        "colas": {"security": [], "checkin": []},
+        "experiencia": {"boarding_avg": 0.0, "boarding_stressed_pct": 0.0,
+                        "high_pressure_pct": 0.0, "waited": 0,
+                        "avg_baggage_wait_s": 0.0, "checked_passengers": 0,
+                        "avg_stow_s": 0.0},
+        "cohortes": [],
+        "vuelos": [],
+        "heatmap": {"security": {}, "checkin": {}},
+    }
+
+    out_file = tmp_path / "custom" / "sim.json"
+    module._write(snapshots, meta, report=report, out_file=str(out_file))
+
+    # informe legible + json
+    assert (tmp_path / "report.md").read_text().startswith("#")
+    assert json.loads((tmp_path / "data" / "report.json").read_text())["resumen"]["boarded"] == 1
+
+    # variantes gzip presentes y descomprimibles
+    for name in ("snapshots.json.gz", "meta.json.gz", "simulation.json.gz"):
+        path = tmp_path / "data" / name
+        assert path.exists(), name
+        with gzip.open(path, "rt", encoding="utf-8") as f:
+            roundtrip = json.load(f)
+        if name == "simulation.json.gz":
+            assert roundtrip["meta"] == meta
+            assert roundtrip["snapshots"] == snapshots
+            assert roundtrip["report"] == report
+
+    # bundle fuera de dist (--out-file)
+    assert json.loads(out_file.read_text())["meta"]["flights"] == 1
+
+
+def test_metrics_include_on_time_heatmap_and_percentiles():
+    world, result = _small_result(120)
+    start = result.events[0].event_time
+    end = result.events[-1].event_time
+    codes = [f.origin_airport.iata_code for f in world.flights]
+    codes += [f.destination_airport.iata_code for f in world.flights]
+    codes = list(dict.fromkeys(codes))
+
+    m = bs.build_metrics(result.events, end, codes, flights=world.flights)
+
+    op = m["operational"]
+    assert "on_time_rate" in op
+    assert 0.0 <= op["on_time_rate"] <= 100.0
+    assert "load_factor_avg" in op
+
+    sec = m["security"]
+    first = next(iter(sec.values()))
+    assert "wait_p50_s" in first and "wait_p90_s" in first
+    assert "hours" in first
+
+    # Puntualidad por vuelo incorpora el schedule (on_time/delay_min).
+    some_flight = next(iter(op["flight"].values()))
+    assert "on_time" in some_flight and "delay_min" in some_flight
+
+
+# ----------------------------------------------------------------------
+# Paso adaptativo (ondas finas, noche ancha)
+# ----------------------------------------------------------------------
+
+
+def test_timeline_ticks_adaptive_peak_finer():
+    start = datetime(2026, 7, 13, 5, 0, 0)
+    end = datetime(2026, 7, 13, 23, 0, 0)
+    ticks = bs.timeline_ticks_adaptive(start, end, 5)
+
+    gaps = {
+        t.hour: (b - a).total_seconds() / 60.0
+        for a, b, t in zip(ticks, ticks[1:], ticks)
+        if (b - a).total_seconds() > 0
+    }
+    assert gaps, "debe generar ticks en todo el rango"
+    assert all(minutes <= 15 for minutes in gaps.values()), "paso nunca > 15 min"
+    assert all(minutes >= 1 for minutes in gaps.values())
+
+    # Fuera de ondas y de la noche usa el paso base (5 min).
+    assert gaps[12] == 5
+    # En la oda de la mañana el paso se reduce (5 // 2 = 2 min).
+    assert gaps[7] == 2
+    # En la oda de la tarde también.
+    assert gaps[17] == 2
+    # De noche se ensancha a 15 min.
+    assert gaps[22] == 15

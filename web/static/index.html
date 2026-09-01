@@ -10,15 +10,35 @@
   <header class="topbar">
     <h1>Airline Day — Timeline</h1>
     <div class="sim-time" id="sim-time">--:--</div>
+    <button id="btn-theme" title="Cambiar a modo oscuro" aria-label="Cambiar de modo claro a oscuro">&#9790;</button>
+    <button id="btn-load" title="Cargar una simulación (JSON bundle)" aria-label="Cargar una simulación">&#10514;</button>
+    <input type="file" id="file-input" accept=".json,.json.gz" hidden />
     <div class="legend" id="legend"></div>
   </header>
 
   <!-- Timeline: fixed, independent of the tabs -->
   <section class="timeline-panel">
     <div class="controls">
-      <button id="btn-play" title="Play/Pause">&#9654; Play</button>
-      <button id="btn-prev" title="Frame anterior">&#9194;</button>
-      <button id="btn-next" title="Frame siguiente">&#9193;</button>
+      <div class="transport">
+        <button id="btn-prev" title="Frame anterior" aria-label="Frame anterior">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path fill="currentColor" d="M6 5h3v14H6zM20 5 9.5 12 20 19z"/>
+          </svg>
+        </button>
+        <button id="btn-play" title="Play / Pausa (espacio)" aria-label="Reproducir o pausar">
+          <svg id="ic-play" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path fill="currentColor" d="M8 5v14l11-7z"/>
+          </svg>
+          <svg id="ic-pause" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path fill="currentColor" d="M7 5h4v14H7zM13 5h4v14h-4z"/>
+          </svg>
+        </button>
+        <button id="btn-next" title="Frame siguiente" aria-label="Frame siguiente">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path fill="currentColor" d="M18 5h-3v14h3zM4 5l10.5 7L4 19z"/>
+          </svg>
+        </button>
+      </div>
       <select id="speed">
         <option value="1">1x</option>
         <option value="5" selected>5x</option>
@@ -37,6 +57,7 @@
     <button class="tab active" data-tab="metrics">Métricas</button>
     <button class="tab" data-tab="airport">Aeropuerto</button>
     <button class="tab" data-tab="air">Mapa aéreo</button>
+    <button class="tab" data-tab="report">Informe</button>
   </nav>
 
   <main>
@@ -103,6 +124,11 @@
         <div id="air-map" class="air-map"></div>
         <div id="air-list" class="air-list"></div>
       </div>
+    </section>
+
+    <!-- TAB: Informe operativo -->
+    <section class="tab-content" id="tab-report" hidden>
+      <div id="report-body" class="report-body"></div>
     </section>
   </main>
 
