@@ -19,8 +19,12 @@ sino de ruido aleatorio. Los pasos a corregir:
   el engine solo reproduce los eventos. Los pasajeros no pueden interactuar ni
   afectarse entre sí.
 - No hay demoras, no-shows, conexiones, equipaje real ni motivo de viaje.
-  `travel_class` siempre es ECONOMY, `boarding_group` nunca se asigna y
-  `preferred_seat` no influye en la asignación de asiento.
+  ~~`travel_class` siempre es ECONOMY, `boarding_group` nunca se asigna y
+  `preferred_seat` no influye en la asignación de asiento~~ → **Resuelto**:
+  `travel_class` se deriva de propósito+lealtad, `boarding_group` se asigna por
+  clase/lealtad, `preferred_seat` (window/aisle) se respeta en `assign_seat`, el
+  check-in varía según `online_checkin_probability` y `checked_baggage` se deriva
+  de `baggage_probability`. Ver `booking_factory.py` y `passenger_factory.py`.
 
 El objetivo de este roadmap es invertir esa lógica: que cada pasajero nazca con
 un perfil coherente y que ese perfil genere comportamientos complejos y
@@ -103,3 +107,14 @@ equipaje). Las fases 3 a 6 quedan después.
 **Nota**: la Fase 2 (motor reactivo) es requisito para que las Fases 3–6 tengan
 sentido. Sin scheduling en cascada, las demoras y conexiones no pueden
 realimentar el mundo y volverían a ser números precalculados.
+
+---
+
+## 4. Progreso registrado
+
+- **Fase 1 (parcial, docs/14)**: cada pasajero ya "nace" con un **aeropuerto base**
+  (`Passenger.home_airport`, coherente con su `nationality`) y el routing de reservas
+  prioriza vuelos desde esa base (con overflow a cualquier origen si no hay ruta).
+  La red `--full-day` (12 aeropuertos / 60 vuelos / 3000 px) ya se despliega en
+  `web/dist`. Queda Fase 2 (motor reactivo) como el gran bloque pendiente.
+

@@ -193,3 +193,47 @@ def test_replay_advances_through_intermediate_states():
         "Boarding",
         "On Flight",
     }
+
+
+def _world_fingerprint(world, result) -> str:
+    """Fingerprint of determinism-sensitive data from a generated world."""
+    names = sorted(
+        f"{p.first_name}_{p.last_name}_{p.arrival_margin}"
+        for p in world.passengers
+    )
+    events = [
+        (e.event_type.value, e.event_time.isoformat())
+        for e in result.events
+    ]
+    gates = sorted(
+        e.payload.get("gate", "") for e in result.events if e.payload.get("gate")
+    )
+    boarding = sorted(
+        e.payload.get("status", "")
+        for e in result.events
+        if e.event_type.value in ("Passenger_Boarded", "Missed_Flight")
+    )
+    return repr((names, events, gates, boarding))
+
+
+def test_generate_world_same_seed_is_reproducible():
+    """Dos mundos generados con la misma semilla deben ser idénticos, incluso
+    en el mismo proceso (el estado global de aeropuertos no debe filtrarse)."""
+    w1 = generate_world(n_airports=4, n_flights=3, n_passengers=60, seed=7)
+    r1 = run_simulation(w1)
+
+    w2 = generate_world(n_airports=4, n_flights=3, n_passengers=60, seed=7)
+    r2 = run_simulation(w2)
+
+    assert _world_fingerprint(w1, r1) == _world_fingerprint(w2, r2)
+
+
+def test_generate_world_different_seed_differs():
+    """Semillas distintas deben producir mundos distintos."""
+    w1 = generate_world(n_airports=4, n_flights=3, n_passengers=60, seed=7)
+    r1 = run_simulation(w1)
+
+    w2 = generate_world(n_airports=4, n_flights=3, n_passengers=60, seed=8)
+    r2 = run_simulation(w2)
+
+    assert _world_fingerprint(w1, r1) != _world_fingerprint(w2, r2)

@@ -54,6 +54,18 @@
       "phone_prefix": "+55",
       "doc_type": "RG"
     },
+    "Argentina": {
+      "weight": 0.06,
+      "faker_locale": "es_AR",
+      "phone_prefix": "+54",
+      "doc_type": "DNI"
+    },
+    "Chile": {
+      "weight": 0.04,
+      "faker_locale": "es_CL",
+      "phone_prefix": "+56",
+      "doc_type": "Cédula"
+    },
     "Japan": {
       "weight": 0.04,
       "faker_locale": "ja_JP",

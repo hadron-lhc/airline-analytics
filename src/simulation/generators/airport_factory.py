@@ -74,6 +74,19 @@ GATE_CODES = [g for codes in AIRPORT_GATES.values() for g in codes]
 _airport_instances: dict[str, Airport] = {}
 
 
+def reset_airports() -> None:
+    """
+    Clear the shared airport instances registered so far.
+
+    Airports and their gate bookings are cached at module level and persist
+    between `generate_world` calls in the same process. Clearing them lets a
+    scenario be reproduced exactly (same seed -> same result) and prevents
+    gate bookings from one run leaking into the next.
+    """
+
+    _airport_instances.clear()
+
+
 def get_or_create_airport(iata_code: str) -> Airport:
     if iata_code not in _airport_instances:
         gates_data = AIRPORT_GATES.get(iata_code)

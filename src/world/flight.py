@@ -31,7 +31,12 @@ class Flight:
     milestones: dict[FlightMilestone, datetime] = field(init=False)
 
     total_seats: dict[TravelClass, int] = field(
-        default_factory=lambda: {TravelClass.ECONOMY: 180}
+        default_factory=lambda: {
+            TravelClass.FIRST: 4,
+            TravelClass.BUSINESS: 16,
+            TravelClass.PREMIUM_ECONOMY: 30,
+            TravelClass.ECONOMY: 150,
+        }
     )
     _seats: list[Seat] = field(default_factory=list, init=False)
     _available: set[str] = field(default_factory=set, init=False)  # seat_numbers libres
@@ -67,7 +72,23 @@ class Flight:
         self._seats = generate_seats(self.total_seats)
         self._available = {s.seat_number for s in self._seats}
 
-    def assign_seat(self, passenger, preferred_class=TravelClass.ECONOMY) -> Seat:
+    def assign_seat(
+        self,
+        passenger,
+        preferred_class=TravelClass.ECONOMY,
+        seat_preference=None,
+    ) -> Seat:
+        def _matches_preference(seat: Seat) -> bool:
+            letter = seat.seat_number[-1]
+            if seat_preference is None:
+                return True
+            preference = seat_preference.value
+            if preference == "Window":
+                return letter in ("A", "F")
+            if preference == "Aisle":
+                return letter in ("C", "D")
+            return True
+
         candidates = [
             s
             for s in self._seats
@@ -77,6 +98,11 @@ class Flight:
             candidates = [s for s in self._seats if s.seat_number in self._available]
         if not candidates:
             raise FlightFullError(f"No seats available on {self.flight_number}")
+
+        preferred = [s for s in candidates if _matches_preference(s)]
+        if preferred:
+            candidates = preferred
+
         seat = random.choice(candidates)
         self._available.remove(seat.seat_number)
         self._occupied[seat.seat_number] = passenger

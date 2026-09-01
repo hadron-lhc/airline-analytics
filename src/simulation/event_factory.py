@@ -1,18 +1,20 @@
 from ..world.simulation_world import SimulationWorld
 
-from .generators.flight_journey import generate_flight_journey
-from .generators.passenger_journey import generate_passenger_journey
+from .simulation_runner import SimulationRunner
 
 
 def generate_events(world: SimulationWorld):
-    events = []
+    """
+    Generate the complete timeline of events for a world.
 
-    for flight in world.flights:
-        events.extend(generate_flight_journey(flight))
+    Delegates to SimulationRunner so passenger journeys share
+    airport resources (e.g. security queues) chronologically.
+    """
+    if not world.bookings:
+        return []
 
-    for booking in world.bookings:
-        events.extend(generate_passenger_journey(booking))
+    runner = SimulationRunner()
 
-    events.sort(key=lambda e: e.event_time)
+    result = runner.run(world.bookings)
 
-    return events
+    return result.events

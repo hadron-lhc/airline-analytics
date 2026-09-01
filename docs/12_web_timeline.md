@@ -15,17 +15,25 @@ los snapshots y se re-despliega, se actualiza.
 ## Generación (terminal)
 
 ```bash
-python web/build_snapshots.py                # sim. chica por defecto → web/dist/
+python web/build_snapshots.py                # hub JFK por defecto (5 vuelos) → web/dist/
 python web/build_snapshots.py --step-min 1   # resolución por minuto (más JSON)
-python web/build_snapshots.py --full-day     # día completo: 12 aeropuertos, 56 vuelos, 10k px
+python web/build_snapshots.py --full-day     # día completo: 12 aeropuertos, 60 vuelos
 python web/build_snapshots.py --saturate     # hacinamiento: todos llegan al margen mínimo
 python web/build_snapshots.py --margin 45    # margen de llegada personalizado (min)
-python web/build_snapshots.py --n-passengers 2000   # controla la población
+python web/build_snapshots.py --n-passengers 3000   # controla la población
+python web/build_snapshots.py --full-day --n-passengers 3000 --seed 20260713
+                                              # build multi-aeropuerto (estado actual de web/dist)
 ```
 
-La simulación por defecto usa `world_factory.generate_world(12, 56, n)` con
-`--saturate/--margin/--n-passengers` para ajustar el escenario; `--full-day`
-selecciona el día completo. Los tiempos de `meta.json` y snapshots se escriben
+- Por defecto (sin `--full-day`) se genera el **hub JFK** con
+  `build_hub_world(n_passengers=...)`.
+- `--full-day` genera la **red completa** con
+  `world_factory.generate_world(12, 60, n)` (60 vuelos repartidos entre los 12
+  aeropuertos; cada pasajero "nace" en su aeropuerto base vía `home_airport`, ver
+  `docs/14_mas_datos.md`).
+- `--saturate/--margin/--n-passengers/--seed` ajustan el escenario.
+
+Los tiempos de `meta.json` y snapshots se escriben
 como ISO **sin zona horaria** (naive): la web los muestra siempre con
 `slice()` sobre la cadena, nunca convirtiendo con `Date.toISOString()`.
 
@@ -108,12 +116,12 @@ python -m http.server 8080 --directory web/dist
 
 ## Tests
 ```bash
-python -m pytest web/tests/test_snapshot_builder.py -q   # 7 tests del builder
-python -m pytest -q                                      # suite completa (107)
+python -m pytest web/tests/test_snapshot_builder.py -q   # 8 tests del builder
+python -m pytest -q                                      # suite completa (146)
 ```
 
 ## Escalado futuro (Hito 2+)
-- Día completo real (`--full-day`): 12 aeropuertos, ~56 vuelos, ~10k px.
+- Día completo real (`--full-day`): 12 aeropuertos, 60 vuelos, ~10k px.
   Si se sube la resolución (por minuto / por vuelo) y hace falta comprimir los
   JSON (gzip/Parquet en el CDN), el régimen de snapshots se ajusta desde el
   builder sin tocar la web.

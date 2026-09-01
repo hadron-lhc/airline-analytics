@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from src.simulation.generators.passenger_journey import PassengerJourney
 from src.simulation.queues.security_queue import SecurityQueue
+from src.simulation.queues.checkin_queue import CheckInQueue
 from src.simulation.world_factory import generate_world
 from src.loaders.airport_layout_loader import load_airport_layout
 from src.enums.simulation_enums import EventType
@@ -27,6 +28,17 @@ def run_complete_journey():
     journey = PassengerJourney()
 
     context = journey.prepare(booking=booking, airport_layout=layout)
+
+    checkin_queue = CheckInQueue(queue_service_model=journey.queue_service_model)
+    checkin_result = checkin_queue.process(
+        passenger=booking.passenger,
+        arrival_time=context.check_in_arrival,
+    )
+    context = journey.continue_after_checkin(
+        context=context,
+        checkin_result=checkin_result,
+    )
+
     queue = SecurityQueue(queue_service_model=journey.queue_service_model)
     security_result = queue.process(
         passenger=booking.passenger,

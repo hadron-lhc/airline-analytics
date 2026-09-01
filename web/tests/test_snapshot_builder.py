@@ -165,6 +165,42 @@ def test_build_metrics_accumulate_only_up_to_now():
     assert m["operational"]["boarded"] == 1
 
 
+def test_metrics_include_checkin_stress_flight_and_cohorts():
+    world, result = _small_result(120)
+    start = result.events[0].event_time
+    end = result.events[-1].event_time
+    codes = [f.origin_airport.iata_code for f in world.flights]
+    codes += [f.destination_airport.iata_code for f in world.flights]
+    codes = list(dict.fromkeys(codes))
+
+    m = bs.build_metrics(result.events, end, codes)
+
+    # Check-in queue: per-airport accumulators exist
+    assert "checkin" in m
+    for code in codes:
+        ck = m["checkin"][code]
+        assert set(ck) >= {"processed", "wait_avg_s", "wait_max_s",
+                           "congested_pct", "in_queue"}
+
+    # SLA / experiencia
+    assert "stress" in m
+    assert {"boarding_avg", "boarding_stressed_pct", "high_pressure_pct",
+            "waited"} <= set(m["stress"])
+
+    # Puntualidad por vuelo (todos los embarcados quedan registrados)
+    flight = m["operational"]["flight"]
+    assert isinstance(flight, dict)
+    assert sum(v["boarded"] for v in flight.values()) == m["operational"]["boarded"]
+
+    # Cohortes por motivo de viaje
+    cohorts = m["cohorts"]
+    assert isinstance(cohorts, dict) and cohorts
+    assert sum(v["boarded"] for v in cohorts.values()) == m["operational"]["boarded"]
+    for v in cohorts.values():
+        assert {"boarded", "missed", "missed_rate", "avg_wait",
+                "avg_stress"} <= set(v)
+
+
 # ----------------------------------------------------------------------
 # Full pipeline writes the static bundle
 # ----------------------------------------------------------------------

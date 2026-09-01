@@ -1,26 +1,28 @@
-from datetime import datetime
-
 from ..loaders.airport_layout_loader import load_airport_layout
-from ..simulation.passenger_journey import PassengerJourney
+from ..simulation.generators.passenger_journey import PassengerJourney
 from ..simulation.generators.passenger_factory import create_random_passenger
+from ..simulation.generators.flight_factory import create_random_flight
+from ..simulation.generators.booking_factory import generate_booking
 
 
 def main():
     passenger = create_random_passenger()
+    flight = create_random_flight()
 
-    airport = load_airport_layout("LAX")
+    booking = generate_booking(passenger, flight)
+
+    airport = load_airport_layout(flight.origin_airport.iata_code)
 
     journey = PassengerJourney()
 
     events = journey.run(
-        passenger=passenger,
+        booking=booking,
         airport_layout=airport,
-        start_time=datetime(2026, 1, 1, 8, 0, 0),
-        gate_code="gate_C1",
     )
 
     print(f"Passenger: {passenger.first_name} {passenger.last_name}")
-    print(f"Events: {len(events)}")
+    print(f"Flight:    {flight.flight_number}")
+    print(f"Events:    {len(events)}")
     print()
 
     for event in events:

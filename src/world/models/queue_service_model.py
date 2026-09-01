@@ -42,3 +42,31 @@ class QueueServiceModel:
         )
 
         return max(service_time, 15.0)
+
+    def calculate_checkin_time(
+        self,
+        passenger: Passenger,
+        online: bool = False,
+    ) -> float:
+        """
+        Calculate the check-in service time for a passenger.
+
+        Online check-in (bag-drop kiosk) is much faster than a
+        full check-in at the counter. Service time also grows if
+        the passenger is checking bags.
+        """
+        variation = random.uniform(
+            1.0 - self.random_variation,
+            1.0 + self.random_variation,
+        )
+
+        baggage_factor = 1.0 + (passenger.baggage_probability * 0.25)
+
+        if online:
+            base = 55.0
+        else:
+            base = 180.0
+
+        service_time = base * variation * baggage_factor
+
+        return max(service_time, 20.0)

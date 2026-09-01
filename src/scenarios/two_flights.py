@@ -5,14 +5,10 @@ from ..world.flight import Flight
 from ..world.gate import Gate
 from ..enums.world_enums import Gender, DocumentType
 
-from ..simulation.generators.passenger_journey import generate_passenger_journey
-from ..simulation.generators.flight_journey import generate_flight_journey
 from ..simulation.generators.airport_factory import get_or_create_airport
 from ..simulation.generators.passenger_factory import generate_passengers
 from ..simulation.generators.booking_factory import generate_bookings
-from ..simulation.engine import SimulationEngine
-from ..simulation.clock import SimulationClock
-from ..simulation.logger import SimulationLogger
+from ..simulation.simulation_runner import SimulationRunner
 
 
 def _assign_gate(airport, departure):
@@ -79,22 +75,19 @@ def main():
 
     show_gate_summary(eze)
 
-    all_events = []
+    all_bookings = []
     for flight in flights:
         passengers = generate_passengers(3)
         bookings = generate_bookings(passengers, [flight])
-        all_events.extend(generate_flight_journey(flight))
+        all_bookings.extend(bookings)
+        # Booking linking requires the passenger to reference its booking.
         for booking in bookings:
-            all_events.extend(generate_passenger_journey(booking))
+            booking.passenger.current_booking = booking
 
-    all_events.sort(key=lambda e: e.event_time)
+    runner = SimulationRunner()
+    result = runner.run(all_bookings)
 
-    engine = SimulationEngine(
-        clock=SimulationClock(current_time=base),
-        logger=SimulationLogger(),
-    )
-    engine.load_events(all_events)
-    engine.run()
+    print(f"\nEvents generated: {len(result.events)}")
 
     print("\n--- Summary ---")
     for flight in flights:

@@ -81,18 +81,17 @@ def test_critical_time_pressure_blocks_recovery():
     assert result.time_pressure > 0.0
 
 
-def test_security_wait_generates_time_pressure_in_run():
-    # Force many passengers into the airport at the same time so
-    # the shared security queue becomes congested.
-    world = generate_world(
-        n_airports=2,
-        n_flights=1,
-        n_passengers=30,
-        simulation_date=datetime(2026, 7, 13),
-    )
+def test_checkin_wait_generates_time_pressure_in_run():
+    # Una oleada saturada (todas las salidas a la misma hora) con márgenes
+    # ajustados hace que la cola de check-in se congestione de verdad. La
+    # cola de check-in es ahora el cuello de botella real que produce la
+    # presión de tiempo sobre los pasajeros.
+    from src.scenarios.hub_day_simulation import build_hub_world
+
+    world = build_hub_world(n_passengers=300, staggered=False, seed=1)
 
     for booking in world.bookings:
-        booking.passenger.arrival_margin = 15
+        booking.passenger.arrival_margin = 20
 
     runner = SimulationRunner()
     result = runner.run(world.bookings)
@@ -103,7 +102,7 @@ def test_security_wait_generates_time_pressure_in_run():
     completed = [
         event
         for event in result.events
-        if event.event_type == EventType.SECURITY_COMPLETED
+        if event.event_type == EventType.CHECK_IN_COMPLETED
     ]
 
     waited = [

@@ -164,12 +164,16 @@ def _layout_geometry(airport_code: str) -> dict:
         zone_centers["exited"] = zone_centers.pop("exit")
 
     # Room spread ("r") per zone: fixed for halls, bounding box for gates.
+    # The spreads are deliberately moderate and the gate box is vertically
+    # capped so "Salidas" (gate) never crowds the "Llegadas" (destination /
+    # exited) boxes near the bottom of the plan.
+    GATE_ROW_MAX_RY = 26.0
     spreads = {
-        "entrance": (5.0, 4.0),
-        "check_in": (8.0, 6.0),
-        "security": (8.0, 6.0),
-        "destination": (9.0, 6.0),
-        "exited": (5.0, 4.0),
+        "entrance": (5.0, 3.5),
+        "check_in": (7.0, 5.0),
+        "security": (7.0, 5.0),
+        "destination": (8.0, 5.0),
+        "exited": (4.0, 3.0),
     }
     if gates:
         xs = [x for x, _ in gates.values()]
@@ -180,7 +184,7 @@ def _layout_geometry(airport_code: str) -> dict:
         )
         spreads["gate"] = (
             max((max(xs) - min(xs)) / 2 + 1.0, 8.0),
-            max((max(ys) - min(ys)) / 2 + 1.5, 12.0),
+            min(max((max(ys) - min(ys)) / 2 + 1.5, 12.0), GATE_ROW_MAX_RY),
         )
     else:
         gate_c = zone_centers.get("gate") or (70.0, 40.0)
@@ -188,6 +192,18 @@ def _layout_geometry(airport_code: str) -> dict:
 
     if "gate" not in zone_centers:
         zone_centers["gate"] = gate_c
+
+    # Separate the arrival-side boxes so "Llegadas" (destination) and
+    # "Salida" (exited) read as distinct blocks with a visible gap, instead
+    # of overlapping in the bottom-left corner.
+    if "destination" in zone_centers and "exited" in zone_centers:
+        dest_c = zone_centers["destination"]
+        exit_c = zone_centers["exited"]
+        need_gap = spreads["destination"][0] + spreads["exited"][0] + 1.5
+        zone_centers["exited"] = (
+            min(exit_c[0], dest_c[0] - need_gap),
+            exit_c[1],
+        )
 
     zones = {
         z: {"c": [round(zone_centers[z][0], 2), round(zone_centers[z][1], 2)],
@@ -270,7 +286,7 @@ def build_passenger_spatial(passengers, flights) -> dict:
 
 
 class _MetricsTracker:
-    """Accumulates operational/security metrics in one chronological pass.
+    """Accumulates operational/security/check-in/SLA/cohort metrics in one pass.
 
     ``feed(event)`` processes events in order; ``snapshot()`` returns the
     cumulative state up to the last fed event. The web build feeds events up
@@ -280,21 +296,82 @@ class _MetricsTracker:
 
     def __init__(self, airports: list[str]):
         self.airports = list(airports)
-        security = {
-            code: {"processed": 0, "waits": [], "max_wait": 0.0,
-                   "congested": 0, "in_queue": 0}
-            for code in self.airports
-        }
-        self._security = security
+
+        def _queue_state():
+            return {"processed": 0, "waits": [], "max_wait": 0.0,
+                    "congested": 0, "in_queue": 0}
+
+        self._security = {code: _queue_state() for code in self.airports}
+        self._checkin = {code: _queue_state() for code in self.airports}
+
         self._index = 0
         self.boarded = 0
         self.missed = 0
         self._arrive_ts: dict[str, datetime] = {}
         self._origin_min: list[float] = []
 
+        # SLA / experiencia
+        self.boarding_stress: list[float] = []
+        self.waited_total = 0
+        self.high_pressure = 0
+
+        # Puntualidad por vuelo
+        self._flight: dict[str, dict] = {}
+
+        # Cohortes por motivo de viaje
+        self._cohorts: dict[str, dict] = {}
+
+    @staticmethod
+    def _purpose(event):
+        entity = event.entity
+        if hasattr(entity, "travel_purpose"):
+            return getattr(entity.travel_purpose, "value", None)
+        return None
+
+    def _cohort(self, purpose: str) -> dict:
+        c = self._cohorts.get(purpose)
+        if c is None:
+            c = {"boarded": 0, "missed": 0, "wait_sum": 0.0, "wait_n": 0,
+                 "stress_sum": 0.0, "stress_n": 0}
+            self._cohorts[purpose] = c
+        return c
+
+    def _flight_stats(self, flight_number: str) -> dict:
+        f = self._flight.get(flight_number)
+        if f is None:
+            f = {"boarded": 0, "missed": 0}
+            self._flight[flight_number] = f
+        return f
+
+    def _record_wait(self, state, payload, congested_key, pressure_key,
+                     purpose) -> None:
+        wait = float(payload.get("queue_wait") or 0.0)
+        s = state
+        s["processed"] += 1
+        s["waits"].append(wait)
+        if wait > s["max_wait"]:
+            s["max_wait"] = wait
+        if payload.get(congested_key):
+            s["congested"] += 1
+        if s["in_queue"]:
+            s["in_queue"] -= 1
+
+        # SLA: censado solo sobre pasajeros que efectivamente esperaron.
+        if wait > 0:
+            self.waited_total += 1
+            if payload.get(pressure_key, 0.0) > 0.0:
+                self.high_pressure += 1
+
+        # Cohortes: la espera alimenta el promedio por motivo.
+        if purpose:
+            c = self._cohort(purpose)
+            c["wait_sum"] += wait
+            c["wait_n"] += 1
+
     def feed(self, event) -> None:
         t = event.event_type
         payload = event.payload
+        purpose = self._purpose(event)
 
         if t == EventType.SECURITY_STARTED:
             apt = payload.get("airport")
@@ -304,16 +381,19 @@ class _MetricsTracker:
         elif t == EventType.SECURITY_COMPLETED:
             apt = payload.get("airport")
             if apt in self._security:
-                wait = float(payload.get("queue_wait") or 0.0)
-                s = self._security[apt]
-                s["processed"] += 1
-                s["waits"].append(wait)
-                if wait > s["max_wait"]:
-                    s["max_wait"] = wait
-                if payload.get("security_congested"):
-                    s["congested"] += 1
-                if s["in_queue"]:
-                    s["in_queue"] -= 1
+                self._record_wait(self._security[apt], payload,
+                                  "security_congested", "time_pressure", purpose)
+
+        elif t == EventType.ARRIVE_CHECK_IN:
+            apt = payload.get("airport")
+            if apt in self._checkin:
+                self._checkin[apt]["in_queue"] += 1
+
+        elif t == EventType.CHECK_IN_COMPLETED:
+            apt = payload.get("airport")
+            if apt in self._checkin:
+                self._record_wait(self._checkin[apt], payload,
+                                  "checkin_congested", "time_pressure", purpose)
 
         elif t == EventType.ARRIVE_AIRPORT:
             pid = self._pid(event)
@@ -329,42 +409,107 @@ class _MetricsTracker:
                     (event.event_time - arrive).total_seconds() / 60.0
                 )
 
+            stress = payload.get("stress")
+            if isinstance(stress, (int, float)):
+                self.boarding_stress.append(float(stress))
+
+            fn = payload.get("flight_number")
+            if isinstance(fn, str):
+                self._flight_stats(fn)["boarded"] += 1
+            if purpose and isinstance(payload.get("stress"), (int, float)):
+                self._cohort(purpose)["stress_sum"] += float(payload["stress"])
+                self._cohort(purpose)["stress_n"] += 1
+            if purpose:
+                self._cohort(purpose)["boarded"] += 1
+
         elif t == EventType.MISSED_FLIGHT:
             self.missed += 1
+            fn = payload.get("flight_number")
+            if isinstance(fn, str):
+                self._flight_stats(fn)["missed"] += 1
+            if purpose:
+                self._cohort(purpose)["missed"] += 1
 
     @staticmethod
     def _pid(event):
         entity = event.entity
         return str(entity.passenger_id) if hasattr(entity, "passenger_id") else None
 
-    def snapshot(self) -> dict:
-        security_out = {}
-        for code, s in self._security.items():
+    def _queue_snapshot(self, states) -> dict:
+        out = {}
+        for code, s in states.items():
             avg = sum(s["waits"]) / len(s["waits"]) if s["waits"] else 0.0
             pct_congested = (
                 (s["congested"] / s["processed"]) if s["processed"] else 0.0
             )
-            security_out[code] = {
+            out[code] = {
                 "processed": s["processed"],
                 "wait_avg_s": round(avg, 1),
                 "wait_max_s": round(s["max_wait"], 1),
                 "congested_pct": round(pct_congested * 100, 1),
                 "in_queue": s["in_queue"],
             }
+        return out
 
+    def snapshot(self) -> dict:
         avg_origin = (
             sum(self._origin_min) / len(self._origin_min)
             if self._origin_min
             else 0.0
         )
+
+        boarding_stress = self.boarding_stress
+        boarding_avg = (
+            sum(boarding_stress) / len(boarding_stress)
+            if boarding_stress
+            else 0.0
+        )
+        stressed = sum(1 for s in boarding_stress if s > 60.0)
+
+        cohorts_out = {}
+        for purpose, c in self._cohorts.items():
+            total = c["boarded"] + c["missed"]
+            cohorts_out[purpose] = {
+                "boarded": c["boarded"],
+                "missed": c["missed"],
+                "missed_rate": round(
+                    (c["missed"] / total) if total else 0.0, 3
+                ),
+                "avg_wait": round(
+                    (c["wait_sum"] / c["wait_n"]) if c["wait_n"] else 0.0, 1
+                ),
+                "avg_stress": round(
+                    (c["stress_sum"] / c["stress_n"]) if c["stress_n"] else 0.0, 1
+                ),
+            }
+
         return {
-            "security": security_out,
+            "security": self._queue_snapshot(self._security),
+            "checkin": self._queue_snapshot(self._checkin),
             "operational": {
                 "boarded": self.boarded,
                 "missed": self.missed,
                 "completed": len(self._origin_min),
                 "avg_origin_min": round(avg_origin, 1),
+                "flight": {
+                    fn: dict(f) for fn, f in sorted(self._flight.items())
+                },
             },
+            "stress": {
+                "boarding_avg": round(boarding_avg, 1),
+                "boarding_stressed_pct": round(
+                    (stressed / len(boarding_stress)) if boarding_stress else 0.0,
+                    1,
+                ),
+                "high_pressure_pct": round(
+                    (self.high_pressure / self.waited_total)
+                    if self.waited_total
+                    else 0.0,
+                    1,
+                ),
+                "waited": self.waited_total,
+            },
+            "cohorts": cohorts_out,
         }
 
 
@@ -487,13 +632,20 @@ def build_airport_points(passengers, flights, airport_code: str = "JFK") -> dict
     return {"zones": counts, "points": points}
 
 
-def build_meta(world, result, airport_names: dict) -> dict:
+def build_meta(world, result, airport_names: dict, title: str | None = None) -> dict:
     layouts = {
         code: _layout_geometry(code)
         for code in airport_names
     }
+    if title is None:
+        origins = {f.origin_airport.iata_code for f in world.flights}
+        title = (
+            "Airline Day — red multi-aeropuerto"
+            if len(origins) > 1
+            else "Airline Day — hub"
+        )
     return {
-        "title": "Airline Day — JFK hub",
+        "title": title,
         "start": result.events[0].event_time.isoformat(),
         "end": result.events[-1].event_time.isoformat(),
         "passengers": len(world.passengers),
@@ -540,17 +692,24 @@ def run(
     saturate: bool = False,
     margin: int | None = None,
     full_day: bool = False,
+    seed: int | None = None,
 ) -> int:
     if full_day:
         from src.simulation.world_factory import generate_world
 
-        world = generate_world(n_airports=12, n_flights=56, n_passengers=n_passengers)
+        world = generate_world(
+            n_airports=12,
+            n_flights=60,
+            n_passengers=n_passengers,
+            seed=seed,
+        )
     else:
         from src.scenarios.hub_day_simulation import build_hub_world
 
         world = build_hub_world(
             n_passengers=n_passengers,
             staggered=not saturate,
+            seed=seed,
         )
 
     if margin is not None:
@@ -665,6 +824,12 @@ def main() -> None:
         help="Build from the full network (12 airports, 56 flights) instead of the hub.",
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed to make the generated world reproducible.",
+    )
+    parser.add_argument(
         "--sql",
         action="store_true",
         help="Also load events into PostgreSQL (analysis layer).",
@@ -677,6 +842,7 @@ def main() -> None:
         saturate=args.saturate,
         margin=args.margin,
         full_day=args.full_day,
+        seed=args.seed,
     )
     print(f"Built web/dist with {n} snapshots.")
 

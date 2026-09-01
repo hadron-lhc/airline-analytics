@@ -4,10 +4,11 @@ from src.simulation.generators.booking_factory import (
     generate_booking,
     generate_bookings,
     _select_flight,
+    _select_travel_class,
 )
 from src.simulation.generators.passenger_factory import create_random_passenger
 from src.simulation.world_factory import generate_world
-from src.enums.world_enums import FlightFullError
+from src.enums.world_enums import FlightFullError, LoyaltyLevel, TravelClass, TravelPurpose
 
 
 def create_test_world(n_airports=12, n_flights=5, n_passengers=100, date=None):
@@ -97,3 +98,104 @@ def test_assign_seat_marks_seat_occupied():
     assert booking.seat is not None
     assert booking.seat.seat_number in booking.flight._occupied
     assert booking.seat.seat_number not in booking.flight._available
+
+
+def test_travel_class_is_not_hardcoded_to_economy():
+    world = create_test_world(n_passengers=150)
+
+    classes = {b.travel_class for b in world.bookings}
+
+    assert classes != {TravelClass.ECONOMY}
+    assert TravelClass.ECONOMY in classes
+
+
+def test_boarding_group_is_always_assigned():
+    world = create_test_world(n_passengers=150)
+
+    for booking in world.bookings:
+        assert booking.boarding_group is not None
+
+
+def test_checked_baggage_varies():
+    world = create_test_world(n_passengers=200)
+
+    values = {b.checked_baggage for b in world.bookings}
+
+    assert 0 in values
+    assert 1 in values
+
+
+def test_preferred_seat_respected_when_available():
+    world = create_test_world(n_flights=10, n_passengers=5)
+
+    for booking in world.bookings:
+        pref = booking.passenger.preferred_seat.value
+        letter = booking.seat.seat_number[-1]
+
+        if pref == "Window":
+            assert letter in ("A", "F")
+        elif pref == "Aisle":
+            assert letter in ("C", "D")
+
+
+def test_select_travel_class_business_purpose_not_all_economy():
+    passenger = create_random_passenger()
+    passenger.travel_purpose = TravelPurpose.BUSINESS
+    passenger.loyalty_level = LoyaltyLevel.NONE
+
+    classes = {_select_travel_class(passenger) for _ in range(300)}
+
+    assert len(classes) > 1
+    assert TravelClass.ECONOMY in classes
+    assert TravelClass.BUSINESS in classes
+
+
+# ---------------------------------------------------------------------------
+# home_airport: pasajeros que "nacen" en su aeropuerto base
+# ---------------------------------------------------------------------------
+
+
+def test_passenger_home_airport_is_set_and_consistent():
+    passenger = create_random_passenger()
+
+    assert passenger.home_airport is not None
+    assert isinstance(passenger.home_airport, str)
+    assert len(passenger.home_airport) == 3
+
+
+def test_generate_world_home_airports_cover_multiple_origins():
+    world = create_test_world(n_airports=12, n_flights=60, n_passengers=3000)
+
+    homes = {p.home_airport for p in world.passengers}
+
+    # La demanda se reparte entre varios aeropuertos base (US + Europa + SA),
+    # no se concentra en un único hub.
+    assert len(homes) >= 5
+
+    # Un pasajero que "nace" en su base debe tomar, en su mayoría, vuelos que
+    # salen de esa base (cuando existe ruta desde allí).
+    from collections import Counter
+
+    matched = Counter()
+    for b in world.bookings:
+        origin = b.flight.origin_airport.iata_code
+        home = b.passenger.home_airport
+        matched["home"] += origin == home
+        matched["total"] += 1
+
+    assert matched["total"] > 0
+    assert matched["home"] >= matched["total"] * 0.5
+
+
+def test_select_flight_prefers_home_airport_when_available():
+    world = create_test_world(n_airports=12, n_flights=60, n_passengers=2000)
+
+    passenger = create_random_passenger()
+    passenger.home_airport = "JFK"
+
+    # Un pasajero con home JFK debe recaer en vuelos de origen JFK cuando existan.
+    jfk_flights = [f for f in world.flights if f.origin_airport.iata_code == "JFK"]
+    if jfk_flights:
+        passenger.preferred_airline = None
+        selected = _select_flight(passenger, world.flights)
+        assert selected is None or selected.origin_airport.iata_code == "JFK"

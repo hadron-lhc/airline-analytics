@@ -18,9 +18,11 @@
   let timer = null;
   let speedMult = 5;
 
-  let securityChart = null;
   let opChart = null;
-  let queueChart = null;
+  let stressChart = null;
+  let flightChart = null;
+  let cohortChart = null;
+  const charts = {};
   let activeTab = "metrics";
   let selectedAirport = null;
 
@@ -59,11 +61,14 @@
     exited: { label: "Salida", color: "#2bbf8a" },
   };
 
-  // Approximate world positions (%) for the air map (all 12 airports in meta)
+  // Approximate world positions (%) for the air map (all 12 airports in meta).
+  // Spread apart so node circles (and their labels) don't overlap, especially
+  // in the Europe (LHR/CDG/BCN/MAD) and South America (MEX/BOG/GRU/SCL/EZE)
+  // clusters that share similar longitude bands.
   const AIRPORT_POS = {
-    EZE: [25, 87], MIA: [12, 44], JFK: [16, 28], LAX: [5, 30],
-    MAD: [44, 32], BCN: [49, 25], CDG: [47, 21], LHR: [46, 18],
-    GRU: [27, 72], MEX: [17, 57], BOG: [18, 66], SCL: [24, 84],
+    EZE: [21, 92], MIA: [14, 46], JFK: [20, 30], LAX: [5, 26],
+    MAD: [44, 36], BCN: [52, 26], CDG: [48, 19], LHR: [43, 12],
+    GRU: [29, 74], MEX: [15, 58], BOG: [14, 68], SCL: [26, 85],
   };
 
   async function init() {
@@ -172,9 +177,14 @@
   // ==================================================================
   function renderMetrics(snap) {
     renderCounters(snap);
-    renderSecurity(snap);
-    renderSecurityQueue(snap);
+    renderQueueMoment(snap, "security", "security-chart");
+    renderQueueMoment(snap, "checkin", "checkin-chart");
     renderOperational(snap);
+    renderStress(snap);
+    renderFlight(snap);
+    renderCohorts(snap);
+    renderQueueOverDay(snap, "security", "security-queue-chart", "Pasajeros en cola");
+    renderQueueOverDay(snap, "checkin", "checkin-queue-chart", "Pasajeros en cola de check-in");
   }
 
   function renderCounters(snap) {
@@ -204,19 +214,22 @@
     ).join("");
   }
 
-  function renderSecurity(snap) {
-    const sec = (snap.metrics && snap.metrics.security) || {};
-    const codes = Object.keys(sec).sort();
+  // Render a per-moment bar chart (espera media + % congestión) for a queue
+  // metric ("security" or "checkin").
+  function renderQueueMoment(snap, metric, canvasId) {
+    const data = (snap.metrics && snap.metrics[metric]) || {};
+    const codes = Object.keys(data).sort();
     if (!codes.length) {
-      if (securityChart) { securityChart.destroy(); securityChart = null; }
+      if (charts[canvasId]) { charts[canvasId].destroy(); }
+      delete charts[canvasId];
       return;
     }
     const labels = codes;
-    const wait = codes.map((c) => sec[c].wait_avg_s);
-    const congest = codes.map((c) => sec[c].congested_pct);
-    if (securityChart) securityChart.destroy();
-    const ctx = $("security-chart").getContext("2d");
-    securityChart = new Chart(ctx, {
+    const wait = codes.map((c) => data[c].wait_avg_s);
+    const congest = codes.map((c) => data[c].congested_pct);
+    if (charts[canvasId]) charts[canvasId].destroy();
+    const ctx = $(canvasId).getContext("2d");
+    charts[canvasId] = new Chart(ctx, {
       type: "bar",
       data: {
         labels,
@@ -237,24 +250,13 @@
     });
   }
 
-  let queueAirports = null;
-  function securityQueueCodes() {
-    if (queueAirports) return queueAirports;
-    const seen = new Set();
-    for (const s of snapshots) {
-      const sec = (s.metrics && s.metrics.security) || {};
-      Object.keys(sec).forEach((c) => seen.add(c));
-    }
-    queueAirports = [...seen].sort();
-    return queueAirports;
-  }
-
-  function renderSecurityQueue(snap) {
-    const codes = securityQueueCodes();
+  // Cumulative "in queue over the day" line chart for a queue metric.
+  function renderQueueOverDay(snap, metric, canvasId, yAxisText) {
+    const codes = queueCodes(metric);
     const rows = snapshots.slice(0, index + 1).map((s) => {
-      const sec = (s.metrics && s.metrics.security) || {};
+      const data = (s.metrics && s.metrics[metric]) || {};
       const row = { t: hhmm(s.t) };
-      codes.forEach((c) => { row[c] = (sec[c] && sec[c].in_queue) || 0; });
+      codes.forEach((c) => { row[c] = (data[c] && data[c].in_queue) || 0; });
       return row;
     });
     const datasets = codes.map((c, ci) => ({
@@ -267,9 +269,9 @@
       pointRadius: 0,
       borderWidth: 2,
     }));
-    if (queueChart) queueChart.destroy();
-    const ctx = $("security-queue-chart").getContext("2d");
-    queueChart = new Chart(ctx, {
+    if (charts[canvasId]) charts[canvasId].destroy();
+    const ctx = $(canvasId).getContext("2d");
+    charts[canvasId] = new Chart(ctx, {
       type: "line",
       data: { labels: rows.map((r) => r.t), datasets },
       options: {
@@ -278,7 +280,121 @@
         plugins: { legend: { labels: { color: "#cfd8ea", boxWidth: 12 } } },
         scales: {
           x: { ticks: { color: "#8ca0c0", maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
-          y: { beginAtZero: true, title: { display: true, text: "pasajeros en cola", color: "#8ca0c0" }, ticks: { color: "#cfd8ea" } },
+          y: { beginAtZero: true, title: { display: true, text: yAxisText, color: "#8ca0c0" }, ticks: { color: "#cfd8ea" } },
+        },
+      },
+    });
+  }
+
+  const _queueCodesCache = {};
+  function queueCodes(metric) {
+    if (_queueCodesCache[metric]) return _queueCodesCache[metric];
+    const seen = new Set();
+    for (const s of snapshots) {
+      const data = (s.metrics && s.metrics[metric]) || {};
+      Object.keys(data).forEach((c) => seen.add(c));
+    }
+    _queueCodesCache[metric] = [...seen].sort();
+    return _queueCodesCache[metric];
+  }
+
+  // SLA / experiencia (acumulado): estrés al embarque + presión de tiempo.
+  function renderStress(snap) {
+    const st = (snap.metrics && snap.metrics.stress) || {};
+    const labels = ["Estrés prom.\nembarque", "…estresados\n(>60)", "Esperas con\npresión alta"];
+    const data = [
+      st.boarding_avg || 0,
+      st.boarding_stressed_pct || 0,
+      st.high_pressure_pct || 0,
+    ];
+    const colors = ["#3aa0ff", "#ff5d72", "#ffb347"];
+    if (stressChart) stressChart.destroy();
+    const ctx = $("stress-chart").getContext("2d");
+    stressChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{ label: "% o valor", data, backgroundColor: colors }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          title: {
+            display: true,
+            text: `${(st.waited || 0)} esperas → ${st.high_pressure_pct || 0}% con presión alta`,
+            color: "#cfd8ea",
+          },
+        },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: "promedio / %", color: "#8ca0c0" }, ticks: { color: "#cfd8ea" } },
+          x: { ticks: { color: "#cfd8ea", fontSize: 11 } },
+        },
+      },
+    });
+  }
+
+  // Puntualidad por vuelo (acumulado): embarcados vs perdidos.
+  function renderFlight(snap) {
+    const op = (snap.metrics && snap.metrics.operational) || {};
+    const flights = op.flight || {};
+    const labels = Object.keys(flights);
+    if (!labels.length) {
+      if (flightChart) { flightChart.destroy(); flightChart = null; }
+      return;
+    }
+    const boarded = labels.map((f) => flights[f].boarded);
+    const missed = labels.map((f) => flights[f].missed);
+    if (flightChart) flightChart.destroy();
+    const ctx = $("flight-chart").getContext("2d");
+    flightChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          { label: "Embarcados", data: boarded, backgroundColor: "#37d67a" },
+          { label: "Perdidos", data: missed, backgroundColor: "#ff5d72" },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: "#cfd8ea" } } },
+        scales: {
+          x: { ticks: { color: "#cfd8ea" } },
+          y: { beginAtZero: true, title: { display: true, text: "pasajeros", color: "#8ca0c0" }, ticks: { color: "#cfd8ea" } },
+        },
+      },
+    });
+  }
+
+  // Cohortes por motivo de viaje (acumulado): missed-rate + estrés medio.
+  function renderCohorts(snap) {
+    const cohorts = (snap.metrics && snap.metrics.cohorts) || {};
+    const labels = Object.keys(cohorts);
+    if (!labels.length) {
+      if (cohortChart) { cohortChart.destroy(); cohortChart = null; }
+      return;
+    }
+    const missedRate = labels.map((c) => (cohorts[c].missed_rate || 0) * 100);
+    const avgStress = labels.map((c) => cohorts[c].avg_stress || 0);
+    if (cohortChart) cohortChart.destroy();
+    const ctx = $("cohort-chart").getContext("2d");
+    cohortChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          { label: "% perdieron vuelo", data: missedRate, yAxisID: "y", backgroundColor: "#ff5d72" },
+          { label: "Estrés medio", data: avgStress, yAxisID: "y1", backgroundColor: "#3aa0ff" },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: "#cfd8ea" } } },
+        scales: {
+          x: { ticks: { color: "#cfd8ea" } },
+          y: { position: "left", min: 0, max: 100, title: { display: true, text: "%", color: "#8ca0c0" }, ticks: { color: "#cfd8ea" } },
+          y1: { position: "right", min: 0, max: 100, title: { display: true, text: "estrés", color: "#8ca0c0" }, grid: { drawOnChartArea: false }, ticks: { color: "#cfd8ea" } },
         },
       },
     });

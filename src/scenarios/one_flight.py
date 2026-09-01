@@ -1,12 +1,8 @@
-from ..simulation.generators.passenger_journey import generate_passenger_journey
-from ..simulation.generators.flight_journey import generate_flight_journey
 from ..simulation.generators.flight_factory import create_random_flight
 from ..simulation.generators.passenger_factory import generate_passengers
 from ..simulation.generators.booking_factory import generate_bookings
-from ..simulation.engine import SimulationEngine
-from ..simulation.clock import SimulationClock
-from ..simulation.logger import SimulationLogger
-from datetime import datetime
+from ..simulation.simulation_runner import SimulationRunner
+from ..simulation.replay import SimulationReplay
 
 
 def show_passengers(passengers):
@@ -41,22 +37,16 @@ def main():
 
     bookings = generate_bookings(passengers, [flight])
 
-    all_events = []
-    all_events.extend(generate_flight_journey(flight))
+    runner = SimulationRunner()
+    result = runner.run(bookings)
 
-    for booking in bookings:
-        all_events.extend(generate_passenger_journey(booking))
+    replay = SimulationReplay(result)
+    while replay.has_next():
+        replay.step()
 
-    all_events.sort(key=lambda e: e.event_time)
+    print(f"\nEvents generated: {len(result.events)}")
 
-    engine = SimulationEngine(
-        clock=SimulationClock(current_time=datetime(2026, 7, 13, 0, 0, 0)),
-        logger=SimulationLogger(),
-    )
-    engine.load_events(all_events)
-    engine.run()
-
-    show_passengers(passengers)
+    show_passengers(replay.current_world.passengers)
 
 
 if __name__ == "__main__":

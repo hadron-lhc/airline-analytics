@@ -4,6 +4,7 @@ from ...enums.world_enums import (
     Gender,
     DocumentType,
     TravelPurpose,
+    SeatPreference,
 )
 from ...world.models.stress_model import StressModel
 from .passenger_helpers.traits import (
@@ -74,6 +75,44 @@ fakers = {
     info["faker_locale"]: Faker(info["faker_locale"])
     for info in COUNTRIES_DATA.values()
 }
+
+# Aeropuerto base por nacionalidad (IATA). Países sin aeropuerto propio se
+# mapean a su hub regional vecino. Garantiza que cada pasajero pueda "nacer"
+# en un aeropuerto coherente con su país.
+HOME_AIRPORT_BY_NATIONALITY = {
+    "United States": "JFK",
+    "United Kingdom": "LHR",
+    "Spain": "MAD",
+    "France": "CDG",
+    "Brazil": "GRU",
+    "Mexico": "MEX",
+    "Colombia": "BOG",
+    "Argentina": "EZE",
+    "Chile": "SCL",
+    "China": "CDG",
+    "Germany": "CDG",
+    "India": "LHR",
+    "Japan": "LHR",
+}
+
+
+def seed_passenger_factory(seed: int) -> None:
+    """
+    Seed every random source used to build passengers.
+
+    Faker draws (names, birth dates) feed into derived traits (age -> fitness
+    -> arrival margin), so the Faker instances must be seeded too, not just the
+    global ``random``/``numpy`` streams. Seeding all of them makes a passenger
+    population reproducible for a given seed.
+    """
+
+    import numpy as np
+
+    random.seed(seed)
+    np.random.seed(seed)
+
+    for faker_instance in fakers.values():
+        faker_instance.seed_instance(seed)
 
 
 def limpiar_texto(texto):
@@ -212,12 +251,28 @@ def create_random_passenger() -> Passenger:
 
     loyalty_level = generate_loyalty_level(travel_experience, travel_purpose)
 
+    # Preferencia de asiento: viajeros de negocio prefieren pasillo, el resto
+    # ventana/pasillo casi por igual; una minoría no tiene preferencia.
+    if travel_purpose == TravelPurpose.BUSINESS:
+        seat_pref = random.choices(
+            [SeatPreference.AISLE, SeatPreference.WINDOW, SeatPreference.ANY],
+            weights=[0.55, 0.30, 0.15],
+            k=1,
+        )[0]
+    else:
+        seat_pref = random.choices(
+            [SeatPreference.WINDOW, SeatPreference.AISLE, SeatPreference.ANY],
+            weights=[0.45, 0.40, 0.15],
+            k=1,
+        )[0]
+
     return Passenger(
         first_name=first_name,
         last_name=last_name,
         birth_date=birth_date,
         gender=gender,
         nationality=selected_country,
+        home_airport=HOME_AIRPORT_BY_NATIONALITY.get(selected_country),
         document_type=DocumentType(DOC_TYPE_MAP[config["doc_type"]]),
         document_number=int(f"{str_fecha}{random_digits}"),
         email=email,
@@ -227,11 +282,11 @@ def create_random_passenger() -> Passenger:
         current_stress=initial_stress,
         current_speed=0.0,
         loyalty_level=loyalty_level,
+        preferred_seat=seat_pref,
         online_checkin_probability=(online_checkin_probability),
         baggage_probability=baggage_probability,
         arrival_margin=arrival_margin,
         walking_speed=walking_speed,
-        stress_resilience=stress_resilience,
     )
 
 

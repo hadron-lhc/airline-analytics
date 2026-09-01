@@ -4,12 +4,12 @@ from ..world.passenger import Passenger
 from ..world.flight import Flight
 from ..world.airport import Airport
 from ..world.gate import Gate
-from ..enums.world_enums import Gender, DocumentType
+from ..enums.world_enums import Gender, DocumentType, TravelPurpose
+from ..world.passenger_traits import PassengerTraits
 
-from ..simulation.generators.passenger_journey import generate_passenger_journey
 from ..simulation.generators.booking_factory import generate_booking
-from ..simulation.engine import SimulationEngine
-from ..simulation.clock import SimulationClock
+from ..simulation.simulation_runner import SimulationRunner
+from ..simulation.replay import SimulationReplay
 
 
 def show_summary(passenger):
@@ -53,6 +53,13 @@ def main():
         document_number="19324548",
         email="juanmartinmaldacena@gmail.com",
         phone="+549221328901",
+        travel_purpose=TravelPurpose.LEISURE,
+        traits=PassengerTraits(
+            fitness=0.4,
+            stress_resilience=0.5,
+            distraction_proneness=0.3,
+            travel_experience=5,
+        ),
     )
 
     # === Primer vuelo =======
@@ -73,16 +80,19 @@ def main():
     )
 
     booking = generate_booking(passenger_0, flight_0)
-    events = generate_passenger_journey(booking)
 
-    engine = SimulationEngine(
-        clock=SimulationClock(current_time=datetime(2026, 7, 13, 0, 0, 0)),
-        events=events,
-    )
+    runner = SimulationRunner()
+    result = runner.run([booking])
 
-    engine.run()
+    replay = SimulationReplay(result)
+    while replay.has_next():
+        replay.step()
 
-    show_summary(passenger_0)
+    final_passenger = replay.current_world.passengers[0]
+
+    print(f"Events generated: {len(result.events)}")
+
+    show_summary(final_passenger)
 
 
 if __name__ == "__main__":

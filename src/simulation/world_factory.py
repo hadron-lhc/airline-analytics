@@ -11,10 +11,14 @@ from .generators.airport_factory import (
     ROUTES,
     generate_synthetic_airports,
     generate_synthetic_routes,
+    reset_airports,
 )
 
 from .generators.flight_factory import _allocate_gate
-from .generators.passenger_factory import generate_passengers
+from .generators.passenger_factory import (
+    generate_passengers,
+    seed_passenger_factory,
+)
 from .generators.booking_factory import generate_bookings
 
 
@@ -98,7 +102,12 @@ def generate_world(
     n_flights: int = 5,
     n_passengers: int = 500,
     simulation_date: datetime | None = None,
+    seed: int | None = None,
 ):
+    if seed is not None:
+        reset_airports()
+        seed_passenger_factory(seed)
+
     if simulation_date is None:
         simulation_date = datetime.now().replace(
             hour=0,

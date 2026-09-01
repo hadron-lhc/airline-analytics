@@ -4,7 +4,11 @@ from ..simulation.logger import SimulationLogger
 
 
 def main():
-    world = generate_world(n_flights=5, passengers_per_flight=100)
+    world = generate_world(
+        n_airports=2,
+        n_flights=2,
+        n_passengers=50,
+    )
     result = run_simulation(world, logger=SimulationLogger())
     path = result.save_events("data/exports/simulation_2026_07_13.json")
     print(f"\nEvents saved to {path}")

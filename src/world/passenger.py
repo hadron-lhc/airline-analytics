@@ -50,6 +50,10 @@ class Passenger:
     preferred_airline: str | None = None
     preferred_seat: SeatPreference = SeatPreference.WINDOW
 
+    # Aeropuerto base del pasajero ("donde nace"): coherente con su nacionalidad.
+    # Si es None, no se restringe la selección de vuelo por origen.
+    home_airport: str | None = None
+
     online_checkin_probability: float = 0.5
     baggage_probability: float = 0.5
 

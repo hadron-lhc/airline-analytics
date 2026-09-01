@@ -1,13 +1,5 @@
-from copy import deepcopy
-from datetime import datetime
-
 from ..simulation.world_factory import generate_world
-from ..simulation.event_factory import generate_events
-
-from ..simulation.engine import SimulationEngine
-from ..simulation.clock import SimulationClock
-
-from ..simulation.result import SimulationResult
+from ..simulation.runner import run_simulation
 
 from ..analysis.simulation_analyzer import SimulationAnalyzer
 
@@ -41,36 +33,10 @@ World:
     )
 
     print("=" * 60)
-    print("GENERATING EVENTS")
-    print("=" * 60)
-
-    events = generate_events(world)
-
-    print(f"Generated events: {len(events)}")
-
-    initial_world = deepcopy(world)
-
-    engine = SimulationEngine(
-        clock=SimulationClock(
-            current_time=datetime.now().replace(
-                hour=0, minute=0, second=0, microsecond=0
-            )
-        )
-    )
-
-    engine.load_events(events)
-
-    print("=" * 60)
     print("RUNNING SIMULATION")
     print("=" * 60)
 
-    engine.run()
-
-    result = SimulationResult(
-        world=world,
-        events=engine.processed_events,
-        initial_world=initial_world,
-    )
+    result = run_simulation(world)
 
     analyzer = SimulationAnalyzer(result)
 

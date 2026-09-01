@@ -53,7 +53,7 @@ def main():
         if not isinstance(event.entity, Passenger):
             continue
 
-        flight_number = event.payload.get("flight")
+        flight_number = event.payload.get("flight_number")
 
         if flight_number is not None:
             passenger_events_by_flight[flight_number].append(event)

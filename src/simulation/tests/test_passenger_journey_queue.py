@@ -2,6 +2,7 @@ from datetime import datetime
 
 from src.simulation.generators.passenger_journey import PassengerJourney
 from src.simulation.queues.security_queue import SecurityQueue
+from src.simulation.queues.checkin_queue import CheckInQueue
 from src.simulation.world_factory import generate_world
 from src.loaders.airport_layout_loader import load_airport_layout
 from src.enums.simulation_enums import EventType
@@ -27,6 +28,14 @@ def create_shared_queue(journey):
     return SecurityQueue(
         capacity=20,
         service_points=4,
+        queue_service_model=journey.queue_service_model,
+    )
+
+
+def create_shared_checkin_queue(journey):
+    return CheckInQueue(
+        capacity=20,
+        service_points=3,
         queue_service_model=journey.queue_service_model,
     )
 
@@ -178,6 +187,7 @@ def test_journey_continues_after_shared_security_queue():
 
     journey = PassengerJourney()
     queue = create_shared_queue(journey)
+    checkin_queue = create_shared_checkin_queue(journey)
 
     contexts = [
         journey.prepare(
@@ -188,6 +198,26 @@ def test_journey_continues_after_shared_security_queue():
     ]
 
     all_events = []
+
+    shared_checkin_arrival = datetime(
+        2026,
+        7,
+        13,
+        10,
+        0,
+        0,
+    )
+
+    for context in contexts:
+        checkin_result = checkin_queue.process(
+            passenger=context.booking.passenger,
+            arrival_time=shared_checkin_arrival,
+        )
+
+        journey.continue_after_checkin(
+            context=context,
+            checkin_result=checkin_result,
+        )
 
     shared_security_arrival = datetime(
         2026,

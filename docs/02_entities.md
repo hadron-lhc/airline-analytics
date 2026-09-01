@@ -22,7 +22,8 @@ Passenger
 │ ├── travel_experience
 │ ├── loyalty_level
 │ ├── preferred_airline
-│ └── preferred_seat
+│ ├── preferred_seat
+│ └── home_airport   (aeropuerto base / "donde nace", coherente con nationality)
 │
 ├── BEHAVIORAL_TRAITS
 │ │

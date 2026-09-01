@@ -12,6 +12,7 @@ class EventType(Enum):
     ARRIVE_CHECK_IN = "Arrive_Check_In"
     CHECK_IN_COMPLETED = "Check_In_Completed"
 
+    ARRIVE_SECURITY = "Arrive_Security"
     SECURITY_STARTED = "Security_Started"
     SECURITY_COMPLETED = "Security_Completed"
 
@@ -25,3 +26,5 @@ class EventType(Enum):
 
     EXIT_AIRCRAFT = "Exit_Aircraft"
     EXIT_AIRPORT = "Exit_Airport"
+
+    MISSED_FLIGHT = "Missed_Flight"

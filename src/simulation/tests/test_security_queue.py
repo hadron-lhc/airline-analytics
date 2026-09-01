@@ -435,3 +435,115 @@ def test_low_capacity_marks_congestion_even_without_waiting():
     assert second.waiting_time > 0
     assert second.occupancy >= 1
     assert second.congested is True
+
+
+# ==========================================================
+# 12. QUEUE LENGTH (pending passengers)
+# ==========================================================
+
+
+def test_queue_length_is_zero_for_passengers_served_immediately():
+    """
+    Passengers who find a free service point should report a queue
+    length of zero: nobody is waiting ahead of them.
+    """
+
+    queue = create_queue(service_points=4)
+
+    arrival_time = datetime(2026, 7, 13, 10, 0, 0)
+
+    results = [
+        queue.process(
+            passenger=create_passenger(f"Passenger{index}"),
+            arrival_time=arrival_time,
+        )
+        for index in range(4)
+    ]
+
+    assert all(result.waiting_time == 0 for result in results)
+    assert all(result.queue_length == 0 for result in results)
+
+
+def test_queue_length_counts_waiting_passengers():
+    """
+    The queue length reported by a waiting passenger must equal the
+    number of passengers already queued ahead of them (not including
+    themselves).
+    """
+
+    queue = create_queue(service_points=1)
+
+    arrival_time = datetime(2026, 7, 13, 10, 0, 0)
+
+    results = [
+        queue.process(
+            passenger=create_passenger(f"Passenger{index}"),
+            arrival_time=arrival_time,
+        )
+        for index in range(5)
+    ]
+
+    # El primero se atiende al instante; el segundo es el primero en hacer
+    # fila (0 delante); los restantes ven fila creciente.
+    assert results[0].queue_length == 0
+    assert results[1].queue_length == 0
+
+    for index, result in enumerate(results[2:], start=1):
+        assert result.waiting_time > 0
+        assert result.queue_length == index
+
+
+def test_queue_length_decreases_as_waiting_passengers_start_service():
+    """
+    Once enough time passes for a queued passenger to begin service,
+    they must no longer count towards the queue length.
+    """
+
+    queue = create_queue(service_points=1)
+
+    arrival_time = datetime(2026, 7, 13, 10, 0, 0)
+
+    # 3 pasajeros llegan a la vez: el 2º y el 3º esperan en fila.
+    for index in range(3):
+        queue.process(
+            passenger=create_passenger(f"Passenger{index}"),
+            arrival_time=arrival_time,
+        )
+
+    # El segundo pasajero empezó su servicio (service_start = primer service_end).
+    second_start = arrival_time + timedelta(seconds=45)
+
+    # Al llegar justo cuando el segundo comienza, solo el tercero sigue esperando.
+    later = queue.process(
+        passenger=create_passenger("Late"),
+        arrival_time=second_start,
+    )
+
+    assert later.queue_length == 1
+    assert len(queue.pending_starts) == 2  # tercero esperando + este nuevo
+
+
+def test_queue_length_reports_everyone_ahead_in_multi_server_queue():
+    """
+    With more passengers than service points, every waiting passenger
+    reports the number of people already queued ahead of them.
+    """
+
+    queue = create_queue(service_points=2)
+
+    arrival_time = datetime(2026, 7, 13, 10, 0, 0)
+
+    results = [
+        queue.process(
+            passenger=create_passenger(f"Passenger{index}"),
+            arrival_time=arrival_time,
+        )
+        for index in range(6)
+    ]
+
+    assert results[0].queue_length == 0  # P1 se atiende
+    assert results[1].queue_length == 0  # P2 se atiende
+    assert results[2].queue_length == 0  # P3 es el primero en esperar -> 0 adelante
+    assert results[3].queue_length == 1  # P4: P3 delante
+    assert results[4].queue_length == 2  # P5: P3 y P4 delante
+    assert results[5].queue_length == 3  # P6: P3, P4 y P5 delante
