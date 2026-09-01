@@ -1,5 +1,28 @@
+# ---- Entornos y secretos (+ python-dotenv) ----
 .env
+.env.*
+!.env.example
+*_env/
+*.env
 
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# ---- Node / JS (solo chequeos locales) ----
+node_modules/
+
+# ---- Local ----
 sketch.txt
 
+# ---- Web (build generado, se publica aparte) ----
 web/dist/
