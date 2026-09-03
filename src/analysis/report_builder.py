@@ -288,7 +288,7 @@ def render_markdown(report: dict) -> str:
     lines.append("")
     lines.append(
         f"- **Estrés medio en embarque:** {exp.get('boarding_avg', 0.0):.0f} "
-        f"· **estresados (>60):** {exp.get('boarding_stressed_pct', 0.0):.0f}%"
+        f"· **estresados:** {exp.get('boarding_stressed_pct', 0.0):.0f}%"
     )
     lines.append(
         f"- **Espera de maletas media:** {exp.get('avg_baggage_wait_s', 0.0):.0f} s "

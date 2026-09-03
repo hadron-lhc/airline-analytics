@@ -79,7 +79,8 @@ class StressModel:
         Update stress during a waiting period.
 
         Low time pressure allows the passenger to recover.
-        High time pressure slows recovery and may increase stress.
+        Moderate pressure stops recovery and may increase stress.
+        High pressure increases stress faster.
         """
 
         if duration_minutes <= 0:
@@ -87,17 +88,21 @@ class StressModel:
 
         time_pressure = self._clamp(time_pressure)
 
-        # Comfortable waiting allows stress recovery.
-        recovery_rate = 0.01 * duration_minutes * (0.5 + stress_resilience)
+        # Comfortable waiting allows stress recovery (capped at moderate
+        # pressure — once the passenger feels pressed, recovery stops).
+        recovery = 0.0
+        if time_pressure <= 0.5:
+            recovery_rate = 0.01 * duration_minutes * (0.5 + stress_resilience)
+            recovery_modifier = 1.0 - time_pressure * 2.0
+            recovery = recovery_rate * max(recovery_modifier, 0.0)
 
-        recovery_modifier = 1.0 - time_pressure
+        # Time pressure increases stress proportionally to wait duration.
+        stress_increase = 0.0
+        if time_pressure > 0.3:
+            stress_increase += 0.008 * duration_minutes * time_pressure
 
-        recovery = recovery_rate * recovery_modifier
-
-        # Under extreme pressure, waiting itself becomes stressful.
+        # Under extreme pressure, stress rises faster.
         if time_pressure > 0.8:
-            stress_increase = 0.015 * duration_minutes * (time_pressure - 0.8) * 5.0
+            stress_increase += 0.015 * duration_minutes * (time_pressure - 0.8) * 5.0
 
-            return self._clamp(current_stress - recovery + stress_increase)
-
-        return self._clamp(current_stress - recovery)
+        return self._clamp(current_stress - recovery + stress_increase)

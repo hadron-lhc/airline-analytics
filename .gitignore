@@ -23,6 +23,3 @@ node_modules/
 
 # ---- Local ----
 sketch.txt
-
-# ---- Web (build generado, se publica aparte) ----
-web/dist/

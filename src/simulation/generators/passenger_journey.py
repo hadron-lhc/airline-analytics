@@ -176,6 +176,7 @@ class PassengerJourney:
             passenger=passenger,
             origin=entrance,
             destination=check_in,
+            stress_event=StressEvent.WAITING,
         )
 
         check_in_arrival = arrival_time + timedelta(seconds=movement.walking_time)
@@ -317,6 +318,7 @@ class PassengerJourney:
             passenger=passenger,
             origin=context.checkin_location,
             destination=context.security_location,
+            stress_event=StressEvent.WAITING,
         )
 
         security_arrival = check_in_completed + timedelta(

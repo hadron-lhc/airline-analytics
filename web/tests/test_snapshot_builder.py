@@ -284,14 +284,13 @@ def test_full_build_writes_dist(tmp_path, monkeypatch):
 
     assert n_snapshots == 1
     assert (tmp_path / "index.html").exists()
-    assert (tmp_path / "data" / "snapshots.json").exists()
-    assert (tmp_path / "data" / "meta.json").exists()
+    assert (tmp_path / "data" / "simulation.json.gz").exists()
     assert (tmp_path / "js" / "app.js").exists()
     assert (tmp_path / "vendor" / "chart.umd.js").exists()
 
 
 # ----------------------------------------------------------------------
-# Bundle único {meta, snapshots, report} + variantes gzip
+# Bundle único {meta, snapshots, report} en simulation.json.gz
 # ----------------------------------------------------------------------
 
 
@@ -329,20 +328,22 @@ def test_write_creates_report_and_gzip_bundle(tmp_path, monkeypatch):
     out_file = tmp_path / "custom" / "sim.json"
     module._write(snapshots, meta, report=report, out_file=str(out_file))
 
-    # informe legible + json
+    # informe legible en markdown
     assert (tmp_path / "report.md").read_text().startswith("#")
-    assert json.loads((tmp_path / "data" / "report.json").read_text())["resumen"]["boarded"] == 1
 
-    # variantes gzip presentes y descomprimibles
-    for name in ("snapshots.json.gz", "meta.json.gz", "simulation.json.gz"):
-        path = tmp_path / "data" / name
-        assert path.exists(), name
-        with gzip.open(path, "rt", encoding="utf-8") as f:
-            roundtrip = json.load(f)
-        if name == "simulation.json.gz":
-            assert roundtrip["meta"] == meta
-            assert roundtrip["snapshots"] == snapshots
-            assert roundtrip["report"] == report
+    # único bundle gzip con {meta, snapshots, report}, descomprimible
+    bundle_path = tmp_path / "data" / "simulation.json.gz"
+    assert bundle_path.exists()
+    with gzip.open(bundle_path, "rt", encoding="utf-8") as f:
+        roundtrip = json.load(f)
+    assert roundtrip["meta"] == meta
+    assert roundtrip["snapshots"] == snapshots
+    assert roundtrip["report"] == report
+
+    # los ficheros sueltos legado ya no se emiten
+    assert not (tmp_path / "data" / "snapshots.json").exists()
+    assert not (tmp_path / "data" / "meta.json").exists()
+    assert not (tmp_path / "data" / "report.json").exists()
 
     # bundle fuera de dist (--out-file)
     assert json.loads(out_file.read_text())["meta"]["flights"] == 1

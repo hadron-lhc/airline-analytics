@@ -1,0 +1,6 @@
+# Motor de simulación y persistencia
+psycopg[binary]>=3.1
+python-dotenv>=1.0
+
+# Desarrollo / tests
+pytest>=8.0

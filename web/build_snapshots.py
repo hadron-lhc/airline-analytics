@@ -9,9 +9,6 @@ Writes a self-contained static site into ``web/dist/``:
     dist/index.html
     dist/js/{app.js,style.css}
     dist/vendor/chart.umd.js
-    dist/data/meta.json (+ .json.gz)
-    dist/data/snapshots.json (+ .json.gz)
-    dist/data/report.json
     dist/data/simulation.json.gz          # bundle único {meta, snapshots, report}
     dist/report.md                        # informe operativo legible
 """
@@ -565,7 +562,7 @@ class _MetricsTracker:
             if boarding_stress
             else 0.0
         )
-        stressed = sum(1 for s in boarding_stress if s > 60.0)
+        stressed = sum(1 for s in boarding_stress if s > 0.6)
 
         cohorts_out = {}
         for purpose, c in self._cohorts.items():
@@ -922,33 +919,27 @@ def run(
 
 def _write(snapshots: list[dict], meta: dict, report: dict | None = None,
            out_file: str | None = None) -> int:
+    """Escribe el sitio web estático en ``web/dist``.
+
+    Publica solo lo que la web necesita para funcionar: los assets
+    (``index.html``, ``js/``, ``vendor/``) y el **bundle único** comprimido
+    ``data/simulation.json.gz`` ({meta, snapshots, report}). Los ficheros
+    sueltos legado (``snapshots.json``, ``meta.json``, ``report.json``, …) ya
+    no se emiten, lo que reduce el dist de ~38 MB a ~5 MB y lo hace apto para
+    commitear/deployar. ``--out-file`` sigue exportando el bundle standalone
+    (para cargar simulaciones sueltas en la web vía botón ↯).
+    """
     # wipe and recreate dist
     if DIST_DIR.exists():
         shutil.rmtree(DIST_DIR)
     DIST_DIR.mkdir(parents=True)
 
     DATA_DIR.mkdir(parents=True)
-    (DATA_DIR / "snapshots.json").write_text(
-        json.dumps(snapshots, ensure_ascii=False), encoding="utf-8"
-    )
-    (DATA_DIR / "meta.json").write_text(
-        json.dumps(meta, ensure_ascii=False), encoding="utf-8"
-    )
 
-    # Bundle único {meta, snapshots, report} + variantes gzip (la web prefiere
-    # cargar "*.json.gz" por red y descomprimir en el navegador).
     bundle: dict = {"meta": meta, "snapshots": snapshots}
     if report is not None:
         bundle["report"] = report
-        (DATA_DIR / "report.json").write_text(
-            json.dumps(report, ensure_ascii=False), encoding="utf-8"
-        )
-        (DIST_DIR / "report.md").write_text(
-            render_markdown(report), encoding="utf-8"
-        )
 
-    _write_json_gz(DATA_DIR / "snapshots.json.gz", snapshots)
-    _write_json_gz(DATA_DIR / "meta.json.gz", meta)
     _write_json_gz(DATA_DIR / "simulation.json.gz", bundle)
 
     if out_file:
@@ -967,6 +958,11 @@ def _write(snapshots: list[dict], meta: dict, report: dict | None = None,
     dst_vendor = DIST_DIR / "vendor"
     dst_vendor.mkdir(parents=True)
     shutil.copy(STATIC_DIR / "vendor" / "chart.umd.js", dst_vendor / "chart.umd.js")
+
+    if report is not None:
+        (DIST_DIR / "report.md").write_text(
+            render_markdown(report), encoding="utf-8"
+        )
 
     return len(snapshots)
 

@@ -10,29 +10,42 @@ gracias a semillas fijas.
 ## Estructura
 
 ```
+├── .env.example            # Plantilla de configuración (crear .env a partir de ella)
 ├── docs/                   # Diseño del sistema (mundo, motor, web, escala…)
+├── sql/
+│   ├── schema.sql          # Esquema de la tabla simulation_events (PostgreSQL)
+│   └── timeline_analysis.sql  # Consultas de análisis de la timeline
 ├── src/
-│   ├── analysis/           # Informe operativo (report_builder.py)
-│   ├── database/           # Capa SQL (pendiente de cablear)
+│   ├── analysis/           # Informe operativo (report_builder.py) + análisis SQL
+│   ├── database/           # Capa SQL: carga de eventos a PostgreSQL
 │   ├── data/               # Datos de referencia (países, aeropuertos…)
 │   ├── enums/              # Enumerados del dominio
-│   ├── scenarios/          # Demos y escenarios (hub, full-day…)
+│   ├── scenarios/          # Escenarios: hub, full-day, export/refresh timeline
 │   ├── simulation/         # Motor: world, runner, replay, generators, queues
 │   └── world/              # Entidades del dominio
 ├── web/
 │   ├── static/             # Plantilla de la web (index.html, app.js, style.css)
 │   ├── tests/              # Tests del build web
 │   └── build_snapshots.py  # Construcción del dist + bundle (línea de comando)
-└── web/dist/               # Web estática servible (generada)
+└── web/dist/               # Web estática servible (generada, no se commitea)
 ```
 
 ## Requisitos
 
-- **Python 3.10+** — única dependencia del proyecto (el `requirements.txt`
-  está vacío; todo es stdlib).
-- **pytest** — para ejecutar la suite de tests.
+- **Python 3.10+**
+- **PostgreSQL** — solo para la capa de persistencia/análisis SQL (opcional si
+  solo quieres la web).
 - **Node.js** — solo opcional, para el chequeo de sintaxis del JS
   (`node --check`).
+
+Instala las dependencias de Python:
+
+```bash
+pip install -r requirements.txt
+```
+
+> Para la web (build + `http.server`) no hace falta instalar nada más: todo lo
+> que usa el build es stdlib.
 
 ## Ver la web (fast path)
 
@@ -88,22 +101,21 @@ python web/build_snapshots.py --full-day --margin 45 --seed 7
 | `--step-min N` | Paso fijo entre snapshots (min). |
 | `--saturate` | Hub con todos los vuelos saliendo a la vez (demostración de congestión). |
 | `--margin MIN` | Fuerza el margen de llegada de todos los pasajeros. |
-| `--out-file PATH` | Escribe además el bundle `{meta, snapshots, report}` en `PATH` (`*.json` o `*.json.gz`). |
-| `--no-report` | Omite la generación del informe (sin `report.json`/`report.md`). |
+| `--out-file PATH` | Escribe además el bundle `{meta, snapshots, report}` en `PATH` (`*.json` o `*.json.gz`) para cargarlo en la web. |
+| `--no-report` | Omite la generación del informe (sin `report.md`). |
 
 ### Qué genera `web/dist`
 
 ```
 index.html · js/ · vendor/               → la web lista
 report.md                                → informe operativo en Markdown
-data/meta.json(.gz)                      → metadatos del día
-data/snapshots.json(.gz)                 → fotogramas de la animación
-data/report.json                         → informe (JSON, lo usa la web)
 data/simulation.json.gz                  → bundle único {meta, snapshots, report}
 ```
 
-Con `--full-day` y 6.000 pasajeros el build tarda ~1 min y produce ~5,7 MB
-comprimidos (≈34 MB sin comprimir). El paso adaptativo deja ~430 fotogramas.
+Solo se publica lo que la web necesita (el bundle único comprimido más los
+assets), así `web/dist` pesa ~5 MB y es apto para commitear y desplegar. Con
+`--full-day` y 6.000 pasajeros el build tarda ~1 min y produce ~4,5 MB; el paso
+adaptativo deja ~430 fotogramas.
 
 ## Cargar un JSON propio en la web
 
@@ -126,6 +138,62 @@ La vista también acepta simulaciones por `postMessage`:
 window.postMessage({ type: "airline.bundle", url: "/data/simulation.json.gz" }, "*");
 ```
 
+## Persistir y analizar en PostgreSQL (SQL)
+
+El proyecto puede volcar los eventos de una simulación a PostgreSQL y
+ejecutar consultas de análisis (`sql/timeline_analysis.sql`). La conexión se
+lee de un archivo `.env`.
+
+### 1. Configurar la conexión
+
+Copia `.env.example` a `.env` y rellena con tus credenciales:
+
+```bash
+cp .env.example .env
+# edita DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
+```
+
+> `.env` está en `.gitignore` y **no** se commitea. `.env.example` sí.
+
+### 2. Pipeline completo (recomendado)
+
+El script `refresh_timeline` orquesta los 4 pasos (exportar → crear schema →
+cargar → analizar):
+
+```bash
+python -m src.scenarios.refresh_timeline
+```
+
+### 3. Pasos sueltos
+
+Si prefieres ejecutarlos uno a uno:
+
+```bash
+# 1) Genera y exporta los eventos a data/exports/simulation_2026_07_13.json
+python -m src.scenarios.export_timeline
+
+# 2) Crea la tabla simulation_events (sql/schema.sql)
+python -m src.database.load_simulation   # (aplica schema solo si no existe)
+
+# 3) Carga los eventos en la tabla
+python -m src.database.load_simulation
+
+# 4) Ejecuta las consultas de análisis (sql/timeline_analysis.sql)
+python -m src.analysis.run_timeline_analysis
+```
+
+> Nota: `load_simulation.main()` aplica el schema **y** carga los eventos en una
+> sola llamada. Para aplicarlo por separado usa `apply_schema()`/`insert_events()`
+> desde el módulo.
+
+### Esquema
+
+La tabla `simulation_events` (definida en `sql/schema.sql`) guarda por evento:
+`event_time`, `event_type`, `entity_*`, `flight_number`, `airport_code`, `zone`,
+`state`, y métricas (`stress`, `wait_seconds`, `queue_length`,
+`security_congested`, `walking_speed`, …). Incluye índices por tiempo, vuelo y
+zona.
+
 ## Informe operativo
 
 El informe (`web/dist/report.md` o la pestaña **Informe**) resume la jornada:
@@ -147,31 +215,50 @@ python -m pytest -q          # suite completa (motor, informe, build web)
 node --check web/static/app.js
 ```
 
-## Deploy: Netlify / Cloudflare Pages
+## Deploy: Cloudflare Pages / Netlify
 
-La carpeta `web/dist` es estática de principio a fin, así que el despliegue es
-trivial y no necesita servidor, build ni variables de entorno.
+`web/dist` es estática de principio a fin y **se commitea** (ya no está en
+`.gitignore`), así que el despliegue no necesita build ni variables de entorno
+en el host.
 
-**Netlify**
+### Flujo (ambos hosts)
 
-1. Conecta el repo. Netlify suele pedir un *build command*: déjalo vacío
-   (o `true`). Build option: `Directory` → **`web/dist`** (**sin** command).
-2. Tras regenerar `web/dist` localmente
-   (`python web/build_snapshots.py --full-day --seed <semilla>`), haz commit y
-   push; Netlify publica el directorio.
+1. **Regenera** localmente el dist con la simulación que quieras publicar:
+   ```bash
+   python web/build_snapshots.py --full-day --seed 20260713
+   ```
+2. **Commit + push** el dist actualizado:
+   ```bash
+   git add web/dist
+   git commit -m "web: publicar simulación"
+   git push
+   ```
+3. El host publica `web/dist`.
 
-**Cloudflare Pages**
+### Cloudflare Pages
 
 1. Crea un *proyecto Pages* conectado al repo.
-2. *Build command*: vacío. *Build output directory*: **`web/dist`**.
-3. Sube el dist actualizado con git (mismo flujo que Netlify).
+2. *Build command*: **vacío**. *Build output directory*: **`web/dist`**.
+3. Cada push con `web/dist` actualizado se publica automáticamente.
+
+### Netlify
+
+1. Conecta el repo. *Build command*: vacío (o `true`). *Build directory*:
+   **`web/dist`**.
+2. El push con el dist actualizado publica el sitio.
+
+### La web publicada
+
+- Carga por defecto el bundle `data/simulation.json.gz` del build.
+- Con el botón **↯** (o arrastrando un archivo) puedes cargar **cualquier**
+  otra simulación generada en consola (`--out-file mi-sim.json.gz`) sin tocar
+  el servidor; todo se procesa en el navegador.
 
 **Notas de rendimiento y gotchas**
 
-- La web carga `data/simulation.json.gz` (bundle único comprimido) en vez de
-  los 34 MB de `snapshots.json`: menos requests y ~5,7 MB por el ancho de
-  banda. Cloudflare **no comprime JSON** por defecto, por eso se prefiere el
-  bundle gzip.
+- La web carga `data/simulation.json.gz` (bundle único comprimido), un único
+  request de ~4,5 MB. Cloudflare **no comprime JSON** por defecto, por eso se
+  publica el bundle ya en gzip.
 - La detección "JSON directo o gzip" intenta primero `JSON.parse` y solo
   descomprime si falla, con lo que funciona aunque el CDN sirva el `.gz` ya
   descomprimido.
@@ -185,9 +272,9 @@ trivial y no necesita servidor, build ni variables de entorno.
 
 ## Limitaciones conocidas
 
-- La integración `--sql` (PostgreSQL) está declarada como *no implementada*
-  en la CLI; la capa vive en `src/database/load_simulation.py` (paso
-  separado, no cableado al build).
+- El flag `--sql` de `build_snapshots.py` no está cableado al build: la carga a
+  PostgreSQL es un pipeline separado (ver **Persistir y analizar en PostgreSQL**),
+  orquestado por `src/scenarios/refresh_timeline.py`.
 - El margen de llegada mínimo por pasajero es de 45 min; en días
   descongestionados los retrasos son de pocos minutos y la puntualidad queda
   cerca del 100%.
