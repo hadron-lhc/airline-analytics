@@ -70,12 +70,12 @@
   };
 
   const ZONE_STYLE = {
-    entrance: { label: "Entrada", color: "#16a34a" },
+    entrance: { label: "Entrance", color: "#16a34a" },
     check_in: { label: "Check-in", color: "#f59e0b" },
-    security: { label: "Seguridad", color: "#dc2626" },
-    gate: { label: "Puertas", color: "#3b82f6" },
-    destination: { label: "Llegadas", color: "#7c3aed" },
-    exited: { label: "Salida", color: "#0891b2" },
+    security: { label: "Security", color: "#dc2626" },
+    gate: { label: "Gates", color: "#3b82f6" },
+    destination: { label: "Arrivals", color: "#7c3aed" },
+    exited: { label: "Exit", color: "#0891b2" },
   };
 
   // Approximate world positions (%) for the air map (all 12 airports in meta).
@@ -89,7 +89,7 @@
   };
 
   async function loadDefault() {
-    // El build emite un único bundle comprimido {meta, snapshots, report}.
+    // The build emits a single compressed bundle {meta, snapshots, report}.
     const bundle = await readBundleUrl(DATA + "simulation.json.gz");
     return {
       meta: bundle.meta,
@@ -104,8 +104,8 @@
       loaded = await loadDefault();
     } catch (err) {
       showLoadError(
-        "No se encuentra data/simulation.json.gz. Regenera el build con " +
-          "`python web/build_snapshots.py` y vuelve a cargar la página.",
+        "Cannot find data/simulation.json.gz. Regenerate the build with " +
+          "`python web/build_snapshots.py` and reload the page.",
       );
       return;
     }
@@ -120,8 +120,8 @@
       `${meta.start.slice(0, 16).replace("T", " ")}  →  ` +
       `${meta.end.slice(0, 16).replace("T", " ")}`;
     $("legend").textContent =
-      `${meta.passengers} pasajeros · ${meta.flights} vuelos · ` +
-      `${meta.total_events} eventos · 1 min sim. = 1 s real @1x`;
+      `${meta.passengers} passengers · ${meta.flights} flights · ` +
+      `${meta.total_events} events · 1 sim min = 1 real s @1x`;
 
     const slider = $("slider");
     slider.max = snapshots.length - 1;
@@ -177,8 +177,8 @@
   }
 
   // ---------- playback ----------
-  // El paso entre snapshots es variable (adaptativo): cada frame debe durar
-  // lo proporcional al paso real. 1x = 1 minuto simulado por segundo real.
+  // The step between snapshots is variable (adaptive): each frame must last
+  // proportional to the real step. 1x = 1 simulated minute per real second.
   function frameMs() {
     let dtMin = FRAME_MS_1X / 1000;
     if (index < snapshots.length - 1) {
@@ -217,7 +217,7 @@
     const btn = $("btn-theme");
     if (btn) {
       btn.textContent = dark ? "\u263C" : "\u263E";
-      btn.title = dark ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+      btn.title = dark ? "Switch to light mode" : "Switch to dark mode";
     }
     if (typeof Chart !== "undefined") {
       Chart.defaults.color = T.tick;
@@ -245,12 +245,12 @@
   }
 
   // ==================================================================
-  // TAB: Informe operativo (report.json del bundle o resumen local)
+  // TAB: Operational report (report.json from the bundle, or local summary)
   // ==================================================================
   function renderReport() {
     const body = $("report-body");
     const r = report || buildClientReport();
-    if (!r) { body.innerHTML = `<i>Informe no disponible.</i>`; return; }
+    if (!r) { body.innerHTML = `<i>Report not available.</i>`; return; }
     body.innerHTML = reportSections(r, !!report);
     $("btn-download-md").disabled = !getReportMarkdown(r);
     $("btn-download-html").disabled = !r;
@@ -258,7 +258,7 @@
   }
 
   // ==================================================================
-  // Descarga del informe (Markdown y HTML autocontenido)
+  // Report download (Markdown and self-contained HTML)
   // ==================================================================
   function downloadBlob(filename, content, type) {
     const blob = new Blob([content], { type: type + ";charset=utf-8" });
@@ -279,8 +279,8 @@
     const fmt = (v, unit) => (v == null || v === "" ? "—" : `${v}${unit || ""}`);
 
     const queueMd = (rows) => {
-      if (!rows || !rows.length) return "_sin datos_";
-      let out = "| Aeropuerto | Procesados | Espera media | P90 | Máx | Congestión | Hora pico |\n";
+      if (!rows || !rows.length) return "_no data_";
+      let out = "| Airport | Processed | Avg wait | P90 | Max | Congested | Peak hour |\n";
       out += "|---|---|---:|---:|---:|---:|---|\n";
       rows.forEach((q) => {
         out += `| ${escMd(q.airport)} | ${(q.processed || 0).toLocaleString()} | ${Math.round(q.wait_avg_s || 0)}s | ` +
@@ -291,20 +291,20 @@
     };
 
     const flightMd = (rows) => {
-      if (!rows || !rows.length) return "_sin datos_";
-      let out = "| Vuelo | Ruta | Salida | Llegada | Capac. | Load | Embarcados | Perdidos | Puntual | Retraso |\n";
+      if (!rows || !rows.length) return "_no data_";
+      let out = "| Flight | Route | Dep | Arr | Cap. | Load | Boarded | Missed | On-time | Delay |\n";
       out += "|---|---|---|---|---:|---:|---:|---:|:---:|---:|\n";
       rows.forEach((f) => {
         out += `| ${escMd(f.flight)} | ${escMd(f.origin)}→${escMd(f.destination)} | ${escMd(f.dep)} | ` +
           `${escMd(f.sched_arr)} | ${f.capacity || 0} | ${pctInt(f.load_factor)} | ${f.boarded || 0} | ` +
-          `${f.missed || 0} | ${f.on_time ? "Sí" : "No"} | ${Math.round(f.delay_min || 0)}m |\n`;
+          `${f.missed || 0} | ${f.on_time ? "Yes" : "No"} | ${Math.round(f.delay_min || 0)}m |\n`;
       });
       return out;
     };
 
     const cohortMd = (rows) => {
-      if (!rows || !rows.length) return "_sin datos_";
-      let out = "| Motivo | Embarcados | Perdidos | Miss rate | Espera media | Estrés |\n";
+      if (!rows || !rows.length) return "_no data_";
+      let out = "| Purpose | Boarded | Missed | Miss rate | Avg wait | Stress |\n";
       out += "|---|---:|---:|---:|---:|---:|\n";
       rows.forEach((c) => {
         out += `| ${escMd(c.purpose)} | ${c.boarded || 0} | ${c.missed || 0} | ` +
@@ -314,31 +314,31 @@
       return out;
     };
 
-    let md = `# ${metaInfo.title || "Airline Day — Informe operativo"}\n\n`;
-    md += `**Fecha:** ${metaInfo.date || "—"} · **Ventana:** ${metaInfo.start || "—"}–${metaInfo.end || "—"} · `;
-    md += `**Pasajeros:** ${(metaInfo.passengers ?? 0).toLocaleString()} · **Vuelos:** ${metaInfo.flights || 0} · `;
-    md += `**Aeropuertos:** ${Object.keys(metaInfo.airports || {}).length} · **Eventos:** ${(metaInfo.events ?? 0).toLocaleString()}\n\n`;
+    let md = `# ${metaInfo.title || "Airline Day — Operational report"}\n\n`;
+    md += `**Date:** ${metaInfo.date || "—"} · **Window:** ${metaInfo.start || "—"}–${metaInfo.end || "—"} · `;
+    md += `**Passengers:** ${(metaInfo.passengers ?? 0).toLocaleString()} · **Flights:** ${metaInfo.flights || 0} · `;
+    md += `**Airports:** ${Object.keys(metaInfo.airports || {}).length} · **Events:** ${(metaInfo.events ?? 0).toLocaleString()}\n\n`;
 
-    md += `## Resumen operativo\n\n`;
-    md += `- **Embarcados:** ${(res.boarded || 0).toLocaleString()} · **Perdidos:** ${(res.missed || 0).toLocaleString()} (${pctInt((res.missed_rate || 0) * 100)})\n`;
-    md += `- **Tiempo medio origen→puerta:** ${fmt(Math.round(res.avg_origin_min), " min")} · **Puntualidad:** ${pctInt(res.on_time_rate)} · `;
-    md += `**Retraso medio:** ${fmt(res.avg_delay_min, " min")} · **Load factor medio:** ${pctInt(res.load_factor_avg)}\n`;
-    md += `- **Estrés de embarque medio:** ${fmt(exp.boarding_avg)} · **Estresados:** ${pctInt(exp.boarding_stressed_pct)} · `;
-    md += `**Esperas con presión alta:** ${pctInt(exp.high_pressure_pct)}\n\n`;
+    md += `## Operational summary\n\n`;
+    md += `- **Boarded:** ${(res.boarded || 0).toLocaleString()} · **Missed:** ${(res.missed || 0).toLocaleString()} (${pctInt((res.missed_rate || 0) * 100)})\n`;
+    md += `- **Avg origin→gate time:** ${fmt(Math.round(res.avg_origin_min), " min")} · **On-time:** ${pctInt(res.on_time_rate)} · `;
+    md += `**Avg delay:** ${fmt(res.avg_delay_min, " min")} · **Avg load factor:** ${pctInt(res.load_factor_avg)}\n`;
+    md += `- **Avg boarding stress:** ${fmt(exp.boarding_avg)} · **Stressed:** ${pctInt(exp.boarding_stressed_pct)} · `;
+    md += `**Waits with high pressure:** ${pctInt(exp.high_pressure_pct)}\n\n`;
 
-    md += `## Colas de seguridad\n\n${queueMd(r.colas && r.colas.security)}\n\n`;
-    md += `## Colas de check-in\n\n${queueMd(r.colas && r.colas.checkin)}\n\n`;
+    md += `## Security queues\n\n${queueMd(r.colas && r.colas.security)}\n\n`;
+    md += `## Check-in queues\n\n${queueMd(r.colas && r.colas.checkin)}\n\n`;
 
-    md += `## Experiencia\n\n`;
-    md += `- **Estrés medio embarque:** ${fmt(exp.boarding_avg)} · **estresados:** ${pctInt(exp.boarding_stressed_pct)}\n`;
-    md += `- **Espera maletas media:** ${fmt(Math.round(exp.avg_baggage_wait_s || 0), " s")} · **Stow medio:** ${fmt(Math.round(exp.avg_stow_s || 0), " s")}\n\n`;
+    md += `## Experience\n\n`;
+    md += `- **Avg boarding stress:** ${fmt(exp.boarding_avg)} · **stressed:** ${pctInt(exp.boarding_stressed_pct)}\n`;
+    md += `- **Avg baggage wait:** ${fmt(Math.round(exp.avg_baggage_wait_s || 0), " s")} · **Avg stow:** ${fmt(Math.round(exp.avg_stow_s || 0), " s")}\n\n`;
 
-    if (r.cohortes && r.cohortes.length) md += `## Cohortes por motivo de viaje\n\n${cohortMd(r.cohortes)}\n\n`;
+    if (r.cohortes && r.cohortes.length) md += `## Cohorts by travel purpose\n\n${cohortMd(r.cohortes)}\n\n`;
 
-    if (r.vuelos && r.vuelos.length) md += `## Vuelos (${r.vuelos.length})\n\n${flightMd(r.vuelos)}\n\n`;
+    if (r.vuelos && r.vuelos.length) md += `## Flights (${r.vuelos.length})\n\n${flightMd(r.vuelos)}\n\n`;
 
-    md += `## Heatmap de espera por aeropuerto y hora (segundos)\n\n`;
-    md += `### Seguridad\n\n${heatmapMd((r.heatmap || {}).security)}\n\n`;
+    md += `## Wait heatmap by airport and hour (seconds)\n\n`;
+    md += `### Security\n\n${heatmapMd((r.heatmap || {}).security)}\n\n`;
     md += `### Check-in\n\n${heatmapMd((r.heatmap || {}).checkin)}\n`;
 
     return md;
@@ -353,12 +353,12 @@
   }
 
   function heatmapMd(hm) {
-    if (!hm || !Object.keys(hm).length) return "_sin datos_";
+    if (!hm || !Object.keys(hm).length) return "_no data_";
     const airports = Object.keys(hm);
     const hours = [];
     airports.forEach((code) => { (hm[code] || []).forEach(([h]) => { if (!hours.includes(h)) hours.push(h); }); });
     hours.sort((a, b) => a - b);
-    let out = "| Aeropuerto" + hours.map((h) => ` | ${h}h`).join("") + " |\n";
+    let out = "| Airport" + hours.map((h) => ` | ${h}h`).join("") + " |\n";
     out += "|" + hours.map(() => "---:").join("|") + "|\n";
     airports.forEach((code) => {
       const byHour = {};
@@ -378,7 +378,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "informe-operativo.html";
+    a.download = "operational-report.html";
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
@@ -395,7 +395,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "informe-operativo.md";
+    a.download = "operational-report.md";
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
@@ -404,8 +404,8 @@
     }, 0);
   }
 
-  // PDF: genera el informe HTML autocontenido en una ventana nueva y abre el
-  // diálogo de impresión del navegador, que permite "Guardar como PDF".
+  // PDF: generates the self-contained HTML report in a new window and opens the
+  // browser print dialog, which allows "Save as PDF".
   function downloadReportPdf() {
     const r = report || buildClientReport();
     if (!r) return;
@@ -422,11 +422,11 @@
 
   function buildReportHtml(r, body, metaInfo) {
     return `<!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${esc(metaInfo.title || "Airline Day — Informe")}</title>
+<title>${esc(metaInfo.title || "Airline Day — Report")}</title>
 <style>
   :root{--bg:#f1f5f9;--panel:#ffffff;--text:#0f172a;--muted:#64748b;--accent:#2563eb;--good:#16a34a;--bad:#dc2626;--border:#e2e8f0}
   *{box-sizing:border-box}
@@ -461,8 +461,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>${esc(metaInfo.title || "Airline Day — Informe operativo")}</h1>
-  <p class="report-sub">${esc(metaInfo.date || "")} · ${esc(metaInfo.start || "")}–${esc(metaInfo.end || "")} · ${(metaInfo.passengers ?? 0).toLocaleString()} pasajeros · ${metaInfo.flights || 0} vuelos · ${(metaInfo.events ?? 0).toLocaleString()} eventos</p>
+  <h1>${esc(metaInfo.title || "Airline Day — Operational report")}</h1>
+  <p class="report-sub">${esc(metaInfo.date || "")} · ${esc(metaInfo.start || "")}–${esc(metaInfo.end || "")} · ${(metaInfo.passengers ?? 0).toLocaleString()} passengers · ${metaInfo.flights || 0} flights · ${(metaInfo.events ?? 0).toLocaleString()} events</p>
   ${body}
 </div>
 </body>
@@ -562,7 +562,7 @@
     const pct = (v) => (v == null ? "0" : Math.round(Number(v))) + "%";
 
     const queueTable = (rows) =>
-      `<table class="report-table"><thead><tr><th>Aeropuerto</th><th>Procesados</th><th>Espera media</th><th>P90</th><th>Máx</th><th>Congestión</th><th>Hora pico</th></tr></thead><tbody>` +
+      `<table class="report-table"><thead><tr><th>Airport</th><th>Processed</th><th>Avg wait</th><th>P90</th><th>Max</th><th>Congested</th><th>Peak hour</th></tr></thead><tbody>` +
       rows.map((q) =>
         `<tr><td>${esc(q.airport)}</td><td>${q.processed.toLocaleString()}</td><td>${Math.round(q.wait_avg_s)}s</td>` +
         `<td>${Math.round(q.wait_p90_s)}s</td><td>${Math.round(q.wait_max_s)}s</td>` +
@@ -573,7 +573,7 @@
       const hrs = [];
       Object.keys(hm || {}).forEach((code) => { hm[code].forEach(([h]) => { if (!hrs.includes(h)) hrs.push(h); }); });
       hrs.sort((a, b) => a - b);
-      if (!hrs.length) return `<i>sin datos</i>`;
+      if (!hrs.length) return `<i>no data</i>`;
       const cell = (code, h) => {
         const pair = (hm[code] || []).find(([x]) => x === h);
         const v = pair ? pair[1] : 0;
@@ -591,34 +591,34 @@
 
     let html = "";
     if (fromBundle) {
-      html += `<div class="report-badge">Informe generado por el backend</div>`;
+      html += `<div class="report-badge">Report generated by the backend</div>`;
     } else {
-      html += `<div class="report-badge alt">Resumen calculado en el navegador (cargá un bundle con report.json para el informe completo)</div>`;
+      html += `<div class="report-badge alt">Summary computed in the browser (load a bundle with report.json for the full report)</div>`;
     }
     html += `<div class="counters report-counters">
-      <div class="counter"><div class="num">${res.boarded || 0}</div><div class="lbl">Embarcados</div></div>
-      <div class="counter"><div class="num" style="color:#ef4444">${res.missed || 0}</div><div class="lbl">Perdieron vuelo</div></div>
-      <div class="counter"><div class="num" style="color:#16a34a">${pct(res.on_time_rate)}</div><div class="lbl">Puntualidad</div></div>
-      <div class="counter"><div class="num" style="color:#2563eb">${pct(res.load_factor_avg)}</div><div class="lbl">Load factor medio</div></div>
-      <div class="counter"><div class="num">${res.avg_origin_min ?? 0}min</div><div class="lbl">Origen → puerta</div></div>
+      <div class="counter"><div class="num">${res.boarded || 0}</div><div class="lbl">Boarded</div></div>
+      <div class="counter"><div class="num" style="color:#ef4444">${res.missed || 0}</div><div class="lbl">Missed flight</div></div>
+      <div class="counter"><div class="num" style="color:#16a34a">${pct(res.on_time_rate)}</div><div class="lbl">On-time</div></div>
+      <div class="counter"><div class="num" style="color:#2563eb">${pct(res.load_factor_avg)}</div><div class="lbl">Avg load factor</div></div>
+      <div class="counter"><div class="num">${res.avg_origin_min ?? 0}min</div><div class="lbl">Origin → gate</div></div>
     </div>`;
     html += `<p class="report-sub">${esc(metaInfo.date || "")} · ${esc(metaInfo.start || "")}–${esc(metaInfo.end || "")} · ` +
-      `${(metaInfo.passengers ?? 0).toLocaleString()} pasajeros · ${metaInfo.flights || 0} vuelos · ` +
-      `${(metaInfo.events ?? 0).toLocaleString()} eventos</p>`;
+      `${(metaInfo.passengers ?? 0).toLocaleString()} passengers · ${metaInfo.flights || 0} flights · ` +
+      `${(metaInfo.events ?? 0).toLocaleString()} events</p>`;
 
-    html += `<section class="report-block"><h3>Colas de seguridad (espera, segundos)</h3>${queueTable(sec)}</section>`;
-    if (secCount > 0) html += `<section class="report-block"><h3>Colas de check-in (espera, segundos)</h3>${queueTable(ck)}</section>`;
+    html += `<section class="report-block"><h3>Security queues (wait, seconds)</h3>${queueTable(sec)}</section>`;
+    if (secCount > 0) html += `<section class="report-block"><h3>Check-in queues (wait, seconds)</h3>${queueTable(ck)}</section>`;
 
-    html += `<section class="report-block"><h3>Experiencia</h3><div class="report-kpis">` +
-      `<div><b>${exp.boarding_avg ?? 0}</b><span>estrés medio embarque</span></div>` +
-      `<div><b>${pct(exp.boarding_stressed_pct)}</b><span>estresados</span></div>` +
-      `<div><b>${pct(exp.high_pressure_pct)}</b><span>esperas con presión alta</span></div>` +
-      `<div><b>${Math.round(exp.avg_baggage_wait_s || 0)}s</b><span>espera maletas media</span></div>` +
+    html += `<section class="report-block"><h3>Experience</h3><div class="report-kpis">` +
+      `<div><b>${exp.boarding_avg ?? 0}</b><span>avg boarding stress</span></div>` +
+      `<div><b>${pct(exp.boarding_stressed_pct)}</b><span>stressed</span></div>` +
+      `<div><b>${pct(exp.high_pressure_pct)}</b><span>waits under high pressure</span></div>` +
+      `<div><b>${Math.round(exp.avg_baggage_wait_s || 0)}s</b><span>avg baggage wait</span></div>` +
       `</div></section>`;
 
     if (r.cohortes && r.cohortes.length) {
-      html += `<section class="report-block"><h3>Cohortes por motivo de viaje</h3><table class="report-table"><thead>
-        <tr><th>Motivo</th><th>Embarcados</th><th>Perdidos</th><th>Miss rate</th><th>Espera media</th><th>Estrés</th></tr></thead><tbody>` +
+      html += `<section class="report-block"><h3>Cohorts by travel purpose</h3><table class="report-table"><thead>
+        <tr><th>Purpose</th><th>Boarded</th><th>Missed</th><th>Miss rate</th><th>Avg wait</th><th>Stress</th></tr></thead><tbody>` +
         r.cohortes.map((c) =>
           `<tr><td>${esc(c.purpose)}</td><td>${c.boarded || 0}</td><td>${c.missed || 0}</td>` +
           `<td>${pct((c.missed_rate || 0) * 100)}</td><td>${Math.round(c.avg_wait || 0)}s</td>` +
@@ -626,23 +626,23 @@
     }
 
     if (r.vuelos && r.vuelos.length) {
-      html += `<section class="report-block"><h3>Vuelos (${r.vuelos.length})</h3><div class="report-table-wrap"><table class="report-table"><thead>
-        <tr><th>Vuelo</th><th>Ruta</th><th>Salida</th><th>Llegada</th><th>Capac.</th><th>Load</th><th>Embarcados</th><th>Perdidos</th><th>Puntual</th><th>Retraso</th></tr></thead><tbody>` +
+      html += `<section class="report-block"><h3>Flights (${r.vuelos.length})</h3><div class="report-table-wrap"><table class="report-table"><thead>
+        <tr><th>Flight</th><th>Route</th><th>Dep</th><th>Arr</th><th>Cap.</th><th>Load</th><th>Boarded</th><th>Missed</th><th>On-time</th><th>Delay</th></tr></thead><tbody>` +
         r.vuelos.map((v) =>
           `<tr><td class="mono">${esc(v.flight)}</td><td>${esc(v.origin)}→${esc(v.destination)}</td><td>${esc(v.dep)}</td>` +
           `<td>${esc(v.sched_arr)}</td><td>${v.capacity}</td><td>${pct(v.load_factor)}</td>` +
           `<td>${v.boarded || 0}</td><td>${v.missed || 0}</td>` +
-          `<td><span class="pill ${v.on_time ? "ok" : "bad"}">${v.on_time ? "Sí" : "No"}</span></td>` +
+          `<td><span class="pill ${v.on_time ? "ok" : "bad"}">${v.on_time ? "Yes" : "No"}</span></td>` +
           `<td>${v.delay_min || 0}m</td></tr>`).join("") + `</tbody></table></div></section>`;
     }
 
-    html += `<section class="report-block"><h3>Heatmap de espera media por aeropuerto y hora (segundos)</h3><h4>Seguridad</h4>${heatmap((r.heatmap || {}).security)}` +
+    html += `<section class="report-block"><h3>Average wait heatmap by airport and hour (seconds)</h3><h4>Security</h4>${heatmap((r.heatmap || {}).security)}` +
       `<h4>Check-in</h4>${heatmap((r.heatmap || {}).checkin)}</section>`;
     return html;
   }
 
   // ==================================================================
-  // Cargar simulaciones (bundle {meta, snapshots, report} o .json.gz)
+  // Load simulations (bundle {meta, snapshots, report} or .json.gz)
   // ==================================================================
   function tryJson(text) {
     try { return JSON.parse(text); } catch (_) { return null; }
@@ -654,14 +654,14 @@
     const bytes = new Uint8Array(await res.arrayBuffer());
     let parsed = tryJson(new TextDecoder().decode(bytes));
     if (parsed === null) {
-      // No era JSON directo (p. ej. .gz) o el CDN lo sirvió ya sin
-      // descomprimir: intentar gzip, tolerante a la extensión / encodings.
+      // Not plain JSON (e.g. .gz) or the CDN already served it decompressed:
+      // try gzip, tolerant to extension / encodings.
       const ds = new DecompressionStream("gzip");
       const stream = new Response(bytes).body.pipeThrough(ds);
       const text = await new Response(stream).text();
       parsed = tryJson(text);
     }
-    if (parsed === null) throw new Error("Bundle no es JSON válido");
+    if (parsed === null) throw new Error("Bundle is not valid JSON");
     return parsed;
   }
 
@@ -677,7 +677,7 @@
 
   function applyBundle(bundle) {
     if (bundle == null || !bundle.meta || !Array.isArray(bundle.snapshots) || !bundle.snapshots.length) {
-      throw new Error("Bundle inválido: faltan meta o snapshots");
+      throw new Error("Invalid bundle: missing meta or snapshots");
     }
     resetAll();
     meta = bundle.meta;
@@ -691,8 +691,8 @@
       `${meta.start.slice(0, 16).replace("T", " ")}  →  ` +
       `${meta.end.slice(0, 16).replace("T", " ")}`;
     $("legend").textContent =
-      `${meta.passengers} pasajeros · ${meta.flights} vuelos · ` +
-      `${meta.total_events} eventos · 1 min sim. = 1 s real @1x`;
+      `${meta.passengers} passengers · ${meta.flights} flights · ` +
+      `${meta.total_events} events · 1 sim min = 1 real s @1x`;
 
     const slider = $("slider");
     slider.max = snapshots.length - 1;
@@ -728,7 +728,7 @@
       const text = await new Response(stream).text();
       parsed = tryJson(text);
     }
-    if (parsed === null) throw new Error("Bundle no es JSON válido");
+    if (parsed === null) throw new Error("Bundle is not valid JSON");
     applyBundle(parsed);
   }
 
@@ -761,7 +761,7 @@
 
   function showLoadError(err) {
     console.error(err);
-    alert("No se pudo cargar la simulación: " + (err && err.message ? err.message : err));
+    alert("Could not load the simulation: " + (err && err.message ? err.message : err));
   }
 
   // ==================================================================
@@ -775,8 +775,8 @@
     renderStress(snap);
     renderFlight(snap);
     renderCohorts(snap);
-    renderQueueOverDay(snap, "security", "security-queue-chart", "Pasajeros en cola");
-    renderQueueOverDay(snap, "checkin", "checkin-queue-chart", "Pasajeros en cola de check-in");
+    renderQueueOverDay(snap, "security", "security-queue-chart", "Passengers in queue");
+    renderQueueOverDay(snap, "checkin", "checkin-queue-chart", "Passengers in check-in queue");
   }
 
   function renderCounters(snap) {
@@ -793,12 +793,12 @@
     const home = state["At Home"] || 0;
 
     const counters = [
-      ["En el aire", air, "#2563eb"],
-      ["En aeropuerto de origen", origin, "#f59e0b"],
-      ["En destino", dest, "#7c3aed"],
-      ["Salieron", exited, "#16a34a"],
-      ["Yendo al aeropuerto", toAirport, T.muted],
-      ["En casa", home, T.muted2],
+      ["In the air", air, "#2563eb"],
+      ["At origin airport", origin, "#f59e0b"],
+      ["At destination", dest, "#7c3aed"],
+      ["Exited", exited, "#16a34a"],
+      ["Going to airport", toAirport, T.muted],
+      ["At home", home, T.muted2],
     ];
     $("counters").innerHTML = counters.map(
       ([lbl, num, color]) =>
@@ -806,7 +806,7 @@
     ).join("");
   }
 
-  // Render a per-moment bar chart (espera media + % congestión) for a queue
+  // Render a per-moment bar chart (avg wait + % congested) for a queue
   // metric ("security" or "checkin").
   function renderQueueMoment(snap, metric, canvasId) {
     const data = (snap.metrics && snap.metrics[metric]) || {};
@@ -826,8 +826,8 @@
       data: {
         labels,
         datasets: [
-          { label: "Espera media (s)", data: wait, yAxisID: "y", backgroundColor: "#3b82f6" },
-          { label: "% congestión", data: congest, yAxisID: "y1", backgroundColor: "#ef4444" },
+          { label: "Avg wait (s)", data: wait, yAxisID: "y", backgroundColor: "#3b82f6" },
+          { label: "% congested", data: congest, yAxisID: "y1", backgroundColor: "#ef4444" },
         ],
       },
       options: {
@@ -835,7 +835,7 @@
         plugins: { legend: { labels: { color: T.tick } } },
         scales: {
           x: { ticks: { color: T.tick } },
-          y: { position: "left", title: { display: true, text: "segundos", color: T.title }, ticks: { color: T.tick }, beginAtZero: true },
+          y: { position: "left", title: { display: true, text: "seconds", color: T.title }, ticks: { color: T.tick }, beginAtZero: true },
           y1: { position: "right", min: 0, max: 100, title: { display: true, text: "%", color: T.title }, grid: { drawOnChartArea: false }, ticks: { color: T.tick } },
         },
       },
@@ -890,10 +890,10 @@
     return _queueCodesCache[metric];
   }
 
-  // SLA / experiencia (acumulado): estrés al embarque + presión de tiempo.
+  // SLA / experience (cumulative): boarding stress + time pressure.
   function renderStress(snap) {
     const st = (snap.metrics && snap.metrics.stress) || {};
-    const labels = ["Estrés prom.\nembarque", "…estresados", "Esperas con\npresión alta"];
+    const labels = ["Avg boarding\nstress", "…stressed", "Waits with\nhigh pressure"];
     const data = [
       st.boarding_avg || 0,
       st.boarding_stressed_pct || 0,
@@ -906,7 +906,7 @@
       type: "bar",
       data: {
         labels,
-        datasets: [{ label: "% o valor", data, backgroundColor: colors }],
+        datasets: [{ label: "% or value", data, backgroundColor: colors }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -914,19 +914,19 @@
           legend: { display: false },
           title: {
             display: true,
-            text: `${(st.waited || 0)} esperas → ${st.high_pressure_pct || 0}% con presión alta`,
+            text: `${(st.waited || 0)} waits → ${st.high_pressure_pct || 0}% with high pressure`,
             color: T.tick,
           },
         },
         scales: {
-          y: { beginAtZero: true, title: { display: true, text: "promedio / %", color: T.title }, ticks: { color: T.tick } },
+          y: { beginAtZero: true, title: { display: true, text: "avg / %", color: T.title }, ticks: { color: T.tick } },
           x: { ticks: { color: T.tick, fontSize: 11 } },
         },
       },
     });
   }
 
-  // Puntualidad por vuelo (acumulado): embarcados vs perdidos.
+  // On-time per flight (cumulative): boarded vs missed.
   function renderFlight(snap) {
     const op = (snap.metrics && snap.metrics.operational) || {};
     const flights = op.flight || {};
@@ -944,8 +944,8 @@
       data: {
         labels,
         datasets: [
-          { label: "Embarcados", data: boarded, backgroundColor: "#16a34a" },
-          { label: "Perdidos", data: missed, backgroundColor: "#ef4444" },
+          { label: "Boarded", data: boarded, backgroundColor: "#16a34a" },
+          { label: "Missed", data: missed, backgroundColor: "#ef4444" },
         ],
       },
       options: {
@@ -953,13 +953,13 @@
         plugins: { legend: { labels: { color: T.tick } } },
         scales: {
           x: { ticks: { color: T.tick } },
-          y: { beginAtZero: true, title: { display: true, text: "pasajeros", color: T.title }, ticks: { color: T.tick } },
+          y: { beginAtZero: true, title: { display: true, text: "passengers", color: T.title }, ticks: { color: T.tick } },
         },
       },
     });
   }
 
-  // Cohortes por motivo de viaje (acumulado): missed-rate + estrés medio.
+  // Cohorts by travel purpose (cumulative): missed-rate + avg stress.
   function renderCohorts(snap) {
     const cohorts = (snap.metrics && snap.metrics.cohorts) || {};
     const labels = Object.keys(cohorts);
@@ -976,8 +976,8 @@
       data: {
         labels,
         datasets: [
-          { label: "% perdieron vuelo", data: missedRate, yAxisID: "y", backgroundColor: "#ef4444" },
-          { label: "Estrés medio", data: avgStress, yAxisID: "y1", backgroundColor: "#3b82f6" },
+          { label: "% missed flight", data: missedRate, yAxisID: "y", backgroundColor: "#ef4444" },
+          { label: "Avg stress", data: avgStress, yAxisID: "y1", backgroundColor: "#3b82f6" },
         ],
       },
       options: {
@@ -986,7 +986,7 @@
         scales: {
           x: { ticks: { color: T.tick } },
           y: { position: "left", min: 0, max: 100, title: { display: true, text: "%", color: T.title }, ticks: { color: T.tick } },
-          y1: { position: "right", min: 0, max: 100, title: { display: true, text: "estrés", color: T.title }, grid: { drawOnChartArea: false }, ticks: { color: T.tick } },
+          y1: { position: "right", min: 0, max: 100, title: { display: true, text: "stress", color: T.title }, grid: { drawOnChartArea: false }, ticks: { color: T.tick } },
         },
       },
     });
@@ -1003,7 +1003,7 @@
     opChart = new Chart(ctx, {
       type: "doughnut",
       data: {
-        labels: ["Embarcados", "Perdidos"],
+        labels: ["Boarded", "Missed"],
         datasets: [{ data: [boarded, missed], backgroundColor: ["#16a34a", "#ef4444"] }],
       },
       options: {
@@ -1012,7 +1012,7 @@
           legend: { labels: { color: T.tick } },
           title: {
             display: true,
-            text: `Embarcados ${boarded} · Perdidos ${missed} · ${completed} en origen · prom ${avg} min en aeropuerto`,
+            text: `Boarded ${boarded} · Missed ${missed} · ${completed} in origin · avg ${avg} min at airport`,
             color: T.tick,
           },
         },
@@ -1136,22 +1136,22 @@
     const shown = points.length;
     const totalPeople = apt.total || 0;
     $("airport-note").textContent = totalPeople
-      ? `Ahora hay ${totalPeople} personas en ${selectedAirport}. ` +
-        `Se muestran ${shown} puntos de muestra; los indicadores de cada zona muestran el total real. Los puntos se agrupan por puerta/zona según el layout real.`
-      : `No hay pasajeros en ${selectedAirport} en este momento.`;
+      ? `There are now ${totalPeople} people in ${selectedAirport}. ` +
+        `${shown} sample points are shown; the zone counters show the real totals. Points are grouped by gate/zone according to the real layout.`
+      : `No passengers in ${selectedAirport} right now.`;
 
     const gates = apt.gates || {};
     $("airport-gates").innerHTML =
-      `<h3 style="margin:0 0 8px;font-size:13px;color:var(--muted);width:100%">Ocupación por puerta</h3>` +
+      `<h3 style="margin:0 0 8px;font-size:13px;color:var(--muted);width:100%">Gate occupancy</h3>` +
       (Object.keys(gates).length
         ? Object.entries(gates).map(([g, v]) =>
             `<div class="gate-chip">Gate ${g}<b>${v}</b></div>`).join("")
-        : `<span class="zone-tag" style="text-align:left">(sin pasajeros en puertas)</span>`);
+        : `<span class="zone-tag" style="text-align:left">(no passengers at gates)</span>`);
 
     const pax = meta.airports[selectedAirport] || selectedAirport;
     $("airport-title").textContent = pax;
     $("airport-side").textContent =
-      (geo.zones.gate ? "Salidas — " : "Llegadas — ") + Object.keys(geo.gates || {}).length + " puertas";
+      (geo.zones.gate ? "Departures — " : "Arrivals — ") + Object.keys(geo.gates || {}).length + " gates";
   }
 
   // ==================================================================
@@ -1270,15 +1270,15 @@
 
     const rows = Object.entries(air).map(([code, n]) => {
       const f = flights[code] || {};
-      return `<div class="air-row"><span><b>${f.from || "?"} → ${f.to || "?"}</b> ${code} · salida ${f.dep}</span><span>${n} pasajeros</span></div>`;
+      return `<div class="air-row"><span><b>${f.from || "?"} → ${f.to || "?"}</b> ${code} · dep ${f.dep}</span><span>${n} passengers</span></div>`;
     });
     $("air-list").innerHTML = rows.length
       ? rows.join("")
-      : `<i>No hay vuelos en el aire en este momento</i>`;
+      : `<i>No flights in the air right now</i>`;
   }
 
   init().catch((e) => {
     document.body.innerHTML =
-      `<pre style="padding:30px;white-space:pre-wrap">No se pudo cargar la data.\n\nEsta vista debe servirse por HTTP (no file://).\nProbá:\n  python -m http.server --directory web/dist 8080\n  y abrí http://localhost:8080\n\n${e}</pre>`;
+      `<pre style="padding:30px;white-space:pre-wrap">Could not load the data.\n\nThis view must be served over HTTP (not file://).\nTry:\n  python -m http.server --directory web/dist 8080\n  and open http://localhost:8080\n\n${e}</pre>`;
   });
 })();

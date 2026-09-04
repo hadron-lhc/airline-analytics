@@ -1,280 +1,282 @@
-# Airline Day — simulador de un día de operación aérea
+# Airline Day — a day of airline operations simulator
 
-Simulador de *evento discreto* de un día de operación de una red de aeropuertos:
-cada pasajero viaja de su origen a su destino atravesando check-in, seguridad,
-puerta de embarque y vuelo. El proyecto genera las métricas de la jornada
-(colas, puntualidad, load factor, estrés), un **informe operativo** y una
-**vista web estática animada** con la evolución del día, todo reproducible
-gracias a semillas fijas.
+Discrete-event simulator of a day of operations of an airport network: each
+passenger travels from origin to destination through check-in, security,
+boarding gate and flight. The project produces the day's metrics (queues,
+punctuality, load factor, stress), an **operational report** and an **animated
+static web view** with the evolution of the day, all reproducible thanks to
+fixed seeds.
 
-## Estructura
+## Live demo
+
+**https://airline-analytics.valentingonzalezdaumes.workers.dev/**
+
+## Structure
 
 ```
-├── .env.example            # Plantilla de configuración (crear .env a partir de ella)
-├── docs/                   # Diseño del sistema (mundo, motor, web, escala…)
+├── .env.example            # Configuration template (create .env from it)
+├── docs/                   # System design (world, engine, web, scale…)
 ├── sql/
-│   ├── schema.sql          # Esquema de la tabla simulation_events (PostgreSQL)
-│   └── timeline_analysis.sql  # Consultas de análisis de la timeline
+│   ├── schema.sql          # simulation_events table schema (PostgreSQL)
+│   └── timeline_analysis.sql  # Timeline analysis queries
 ├── src/
-│   ├── analysis/           # Informe operativo (report_builder.py) + análisis SQL
-│   ├── database/           # Capa SQL: carga de eventos a PostgreSQL
-│   ├── data/               # Datos de referencia (países, aeropuertos…)
-│   ├── enums/              # Enumerados del dominio
-│   ├── scenarios/          # Escenarios: hub, full-day, export/refresh timeline
-│   ├── simulation/         # Motor: world, runner, replay, generators, queues
-│   └── world/              # Entidades del dominio
+│   ├── analysis/           # Operational report (report_builder.py) + SQL analysis
+│   ├── database/           # SQL layer: loads events into PostgreSQL
+│   ├── data/               # Reference data (countries, airports…)
+│   ├── enums/              # Domain enums
+│   ├── scenarios/          # Scenarios: hub, full-day, export/refresh timeline
+│   ├── simulation/         # Engine: world, runner, replay, generators, queues
+│   └── world/              # Domain entities
 ├── web/
-│   ├── static/             # Plantilla de la web (index.html, app.js, style.css)
-│   ├── tests/              # Tests del build web
-│   └── build_snapshots.py  # Construcción del dist + bundle (línea de comando)
-└── web/dist/               # Web estática servible (generada, no se commitea)
+│   ├── static/             # Web templates (index.html, app.js, style.css)
+│   ├── tests/              # Web build tests
+│   └── build_snapshots.py  # dist + bundle build (command line)
+└── web/dist/               # Servable static web (generated, committed)
 ```
 
-## Requisitos
+## Requirements
 
 - **Python 3.10+**
-- **PostgreSQL** — solo para la capa de persistencia/análisis SQL (opcional si
-  solo quieres la web).
-- **Node.js** — solo opcional, para el chequeo de sintaxis del JS
+- **PostgreSQL** — only for the persistence/SQL analysis layer (optional if
+  you just want the web).
+- **Node.js** — optional, only for the JS syntax check
   (`node --check`).
 
-Instala las dependencias de Python:
+Install the Python dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-> Para la web (build + `http.server`) no hace falta instalar nada más: todo lo
-> que usa el build es stdlib.
+> For the web (build + `http.server`) nothing else needs installing: the build
+> only uses the standard library.
 
-## Ver la web (fast path)
+## View the web (fast path)
 
 ```bash
 python -m http.server 8080 --directory web/dist
 ```
 
-Abrir `http://localhost:8080`. La web es **100% estática**: no hace falta
-nada más. Nota: abrir `index.html` con doble clic no funciona (los datos se
-cargan por `fetch`); siempre hay que servir el directorio.
+Open `http://localhost:8080`. The web is **100% static**: nothing else is
+needed. Note: opening `index.html` with a double click does not work (the data
+is loaded via `fetch`); always serve the directory.
 
-### Cómo se maneja
+### How it works
 
-- **Timeline** fijo arriba: ▶/⏸ (o `espacio`), flechas ← →, slider y
-  velocidad 1×–50× *(1 min simulado = 1 s real a 1×)*. Los enlaces con
-  `#tab:n` abren pestaña y fotograma (`#report:42`).
-- **Métricas**: contadores globales, colas de seguridad/check-in (en el
-  momento y a lo largo del día por aeropuerto), operativo acumulado
-  (embarcados, puntualidad, load factor, retraso medio), experiencia,
-  puntualidad por vuelo y cohortes por motivo de viaje.
-- **Aeropuerto**: plano con zonas y viajeros por zona (+ lista de puertas).
-- **Mapa aéreo**: vuelos en el aire y lista.
-- **Informe**: resumen operativo del día (informe completo del build o
-  resumen local si se carga un bundle sin `report`).
+- **Fixed timeline** at the top: ▶/⏸ (or `space`), ← → arrows, slider and
+  speed 1×–50× *(1 simulated min = 1 real s at 1×)*. Links with
+  `#tab:n` open a tab and frame (`#report:42`).
+- **Metrics**: global counters, security/check-in queues (at the moment and
+  over the day per airport), cumulative operations (boarded, punctuality,
+  load factor, average delay), experience, punctuality per flight and cohorts
+  by travel purpose.
+- **Airport**: floor plan with zones and travelers per zone (+ gate list).
+- **Air map**: flights in the air and list.
+- **Report**: day's operational summary (full build report or local summary
+  when loading a bundle without `report`).
 
-## Generar una simulación desde terminal
+## Generating a simulation from the terminal
 
-El build escribe en `web/dist` (lo regenera por completo) y produce, además,
-el **bundle único** de toda la simulación.
+The build writes into `web/dist` (regenerated completely) and also produces a
+**single bundle** with the whole simulation.
 
 ```bash
-# Escenario hub (un aeropuerto central): rápido, 6.000 pasajeros por defecto
+# Hub scenario (a central airport): fast, 6,000 passengers by default
 python web/build_snapshots.py --n-passengers 1000 --seed 7
 
-# Red completa (12 aeropuertos / 60 vuelos), paso de snapshot adaptativo
+# Full network (12 airports / 60 flights), adaptive snapshot step
 python web/build_snapshots.py --full-day --seed 20260713
 
-# Hub saturado: todos los vuelos a la vez → pico de seguridad
+# Saturated hub: all flights at once → security peak
 python web/build_snapshots.py --saturate --seed 7
 
-# Forzar margen de llegada (min): márgenes cortos → llegadas tardías/retrasos
+# Force arrival margin (min): short margins → late arrivals/delays
 python web/build_snapshots.py --full-day --margin 45 --seed 7
 ```
 
-### Opciones
+### Options
 
-| Flag | Descripción |
+| Flag | Description |
 |---|---|
-| `--full-day` | Red completa (12 aeropuertos, 60 vuelos). Activa el paso adaptativo por defecto. |
-| `--n-passengers N` | Pasajeros (default `6000`). |
-| `--seed N` | Semilla para reproducir el mundo (los datos en `web/dist` usan `20260713`). |
-| `--adaptive` | Paso de snapshot variable: fino en las ondas de salida (~2–3 min), 15 min de noche. |
-| `--step-min N` | Paso fijo entre snapshots (min). |
-| `--saturate` | Hub con todos los vuelos saliendo a la vez (demostración de congestión). |
-| `--margin MIN` | Fuerza el margen de llegada de todos los pasajeros. |
-| `--out-file PATH` | Escribe además el bundle `{meta, snapshots, report}` en `PATH` (`*.json` o `*.json.gz`) para cargarlo en la web. |
-| `--no-report` | Omite la generación del informe (sin `report.md`). |
+| `--full-day` | Full network (12 airports, 60 flights). Enables the adaptive step by default. |
+| `--n-passengers N` | Passengers (default `6000`). |
+| `--seed N` | Seed to reproduce the world (the data in `web/dist` uses `20260713`). |
+| `--adaptive` | Variable snapshot step: fine during departure waves (~2–3 min), 15 min at night. |
+| `--step-min N` | Fixed step between snapshots (min). |
+| `--saturate` | Hub with all flights departing at once (congestion demo). |
+| `--margin MIN` | Forces the arrival margin of every passenger. |
+| `--out-file PATH` | Also writes the bundle `{meta, snapshots, report}` to `PATH` (`*.json` or `*.json.gz`) to load it in the web. |
+| `--no-report` | Skips report generation (no `report.md`). |
 
-### Qué genera `web/dist`
+### What `web/dist` generates
 
 ```
-index.html · js/ · vendor/               → la web lista
-report.md                                → informe operativo en Markdown
-data/simulation.json.gz                  → bundle único {meta, snapshots, report}
+index.html · js/ · vendor/               → the ready web
+report.md                                → operational report in Markdown
+data/simulation.json.gz                  → single bundle {meta, snapshots, report}
 ```
 
-Solo se publica lo que la web necesita (el bundle único comprimido más los
-assets), así `web/dist` pesa ~5 MB y es apto para commitear y desplegar. Con
-`--full-day` y 6.000 pasajeros el build tarda ~1 min y produce ~4,5 MB; el paso
-adaptativo deja ~430 fotogramas.
+Only what the web needs is published (the single compressed bundle plus the
+assets), so `web/dist` weighs ~5 MB and is suitable for committing and
+deploying. With `--full-day` and 6,000 passengers the build takes ~1 min and
+produces ~4.5 MB; the adaptive step leaves ~430 frames.
 
-## Cargar un JSON propio en la web
+## Loading your own JSON in the web
 
-Genera un bundle standalone y cárgalo en la vista:
+Generate a standalone bundle and load it in the view:
 
 ```bash
 python web/build_snapshots.py --full-day --seed 7 --out-file /tmp/mi-sim.json.gz
 ```
 
-En la web, con el botón **↯** (arriba a la derecha):
+In the web, with the **Load simulation** button (top center):
 
-1. Abrir el selector de archivos y elegir `mi-sim.json.gz`, **o**
-2. arrastrar/soltar el archivo sobre la ventana.
+1. Open the file picker and choose `mi-sim.json.gz`, **or**
+2. drag & drop the file over the window.
 
-Acepta `.json` y `.json.gz` (la descompresión ocurre en el navegador). El
-formato del bundle es un único JSON: `{"meta": …, "snapshots": […], "report": …}`.
-La vista también acepta simulaciones por `postMessage`:
+Accepts `.json` and `.json.gz` (decompression happens in the browser). The
+bundle format is a single JSON: `{"meta": …, "snapshots": […], "report": …}`.
+The view also accepts simulations via `postMessage`:
 
 ```js
 window.postMessage({ type: "airline.bundle", url: "/data/simulation.json.gz" }, "*");
 ```
 
-## Persistir y analizar en PostgreSQL (SQL)
+## Persisting and analyzing in PostgreSQL (SQL)
 
-El proyecto puede volcar los eventos de una simulación a PostgreSQL y
-ejecutar consultas de análisis (`sql/timeline_analysis.sql`). La conexión se
-lee de un archivo `.env`.
+The project can dump a simulation's events to PostgreSQL and run analysis
+queries (`sql/timeline_analysis.sql`). The connection is read from a `.env`
+file.
 
-### 1. Configurar la conexión
+### 1. Configure the connection
 
-Copia `.env.example` a `.env` y rellena con tus credenciales:
+Copy `.env.example` to `.env` and fill in your credentials:
 
 ```bash
 cp .env.example .env
-# edita DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
+# edit DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
 ```
 
-> `.env` está en `.gitignore` y **no** se commitea. `.env.example` sí.
+> `.env` is in `.gitignore` and is **not** committed. `.env.example` is.
 
-### 2. Pipeline completo (recomendado)
+### 2. Full pipeline (recommended)
 
-El script `refresh_timeline` orquesta los 4 pasos (exportar → crear schema →
-cargar → analizar):
+The `refresh_timeline` script orchestrates the 4 steps (export → create schema →
+load → analyze):
 
 ```bash
 python -m src.scenarios.refresh_timeline
 ```
 
-### 3. Pasos sueltos
+### 3. Individual steps
 
-Si prefieres ejecutarlos uno a uno:
+If you prefer to run them one by one:
 
 ```bash
-# 1) Genera y exporta los eventos a data/exports/simulation_2026_07_13.json
+# 1) Generates and exports the events to data/exports/simulation_2026_07_13.json
 python -m src.scenarios.export_timeline
 
-# 2) Crea la tabla simulation_events (sql/schema.sql)
-python -m src.database.load_simulation   # (aplica schema solo si no existe)
+# 2) Creates the simulation_events table (sql/schema.sql)
+python -m src.database.load_simulation   # (applies the schema only if it doesn't exist)
 
-# 3) Carga los eventos en la tabla
+# 3) Loads the events into the table
 python -m src.database.load_simulation
 
-# 4) Ejecuta las consultas de análisis (sql/timeline_analysis.sql)
+# 4) Runs the analysis queries (sql/timeline_analysis.sql)
 python -m src.analysis.run_timeline_analysis
 ```
 
-> Nota: `load_simulation.main()` aplica el schema **y** carga los eventos en una
-> sola llamada. Para aplicarlo por separado usa `apply_schema()`/`insert_events()`
-> desde el módulo.
+> Note: `load_simulation.main()` applies the schema **and** loads the events in
+> a single call. To apply them separately use `apply_schema()`/`insert_events()`
+> from the module.
 
-### Esquema
+### Schema
 
-La tabla `simulation_events` (definida en `sql/schema.sql`) guarda por evento:
+The `simulation_events` table (defined in `sql/schema.sql`) stores per event:
 `event_time`, `event_type`, `entity_*`, `flight_number`, `airport_code`, `zone`,
-`state`, y métricas (`stress`, `wait_seconds`, `queue_length`,
-`security_congested`, `walking_speed`, …). Incluye índices por tiempo, vuelo y
-zona.
+`state`, and metrics (`stress`, `wait_seconds`, `queue_length`,
+`security_congested`, `walking_speed`, …). Includes indexes by time, flight and
+zone.
 
-## Informe operativo
+## Operational report
 
-El informe (`web/dist/report.md` o la pestaña **Informe**) resume la jornada:
+The report (`web/dist/report.md` or the **Report** tab) summarizes the day:
 
-- **Resumen**: embarcados/perdidos, % que completaron el ciclo, puntualidad
-  (retraso ≤ 15 min, estándar de aviación), retraso medio, load factor medio.
-- **Colas**: seguridad y check-in por aeropuerto (espera media / P90 / máx,
-  congestión, hora pico).
-- **Heatmap** de espera media por aeropuerto y hora.
-- **Vuelos** operados con sus retrasos y **cohortes** por motivo de viaje.
+- **Summary**: boarded/missed, % that completed the cycle, punctuality (delay ≤
+  15 min, aviation standard), average delay, average load factor.
+- **Queues**: security and check-in per airport (avg wait / P90 / max,
+  congestion, peak hour).
+- **Heatmap** of average wait per airport and hour.
+- **Flights** operated with their delays and **cohorts** by travel purpose.
 
-En un día tranquilo (márgenes amplios) casi todo sale puntual; para ver
-retrasos y pérdidas de vuelo usa `--margin 45` o `--saturate`.
+On a calm day (wide margins) almost everything is on time; to see delays and
+missed flights use `--margin 45` or `--saturate`.
 
-## Tests y chequeos
+## Tests and checks
 
 ```bash
-python -m pytest -q          # suite completa (motor, informe, build web)
+python -m pytest -q          # full suite (engine, report, web build)
 node --check web/static/app.js
 ```
 
 ## Deploy: Cloudflare Pages / Netlify
 
-`web/dist` es estática de principio a fin y **se commitea** (ya no está en
-`.gitignore`), así que el despliegue no necesita build ni variables de entorno
-en el host.
+`web/dist` is static end to end and **is committed** (no longer in
+`.gitignore`), so the deploy needs no build or environment variables on the
+host.
 
-### Flujo (ambos hosts)
+### Flow (both hosts)
 
-1. **Regenera** localmente el dist con la simulación que quieras publicar:
+1. **Regenerate** the dist locally with the simulation you want to publish:
    ```bash
    python web/build_snapshots.py --full-day --seed 20260713
    ```
-2. **Commit + push** el dist actualizado:
+2. **Commit + push** the updated dist:
    ```bash
    git add web/dist
-   git commit -m "web: publicar simulación"
+   git commit -m "web: publish simulation"
    git push
    ```
-3. El host publica `web/dist`.
+3. The host publishes `web/dist`.
 
 ### Cloudflare Pages
 
-1. Crea un *proyecto Pages* conectado al repo.
-2. *Build command*: **vacío**. *Build output directory*: **`web/dist`**.
-3. Cada push con `web/dist` actualizado se publica automáticamente.
+1. Create a *Pages project* connected to the repo.
+2. *Build command*: **empty**. *Build output directory*: **`web/dist`**.
+3. Every push with an updated `web/dist` publishes automatically.
 
 ### Netlify
 
-1. Conecta el repo. *Build command*: vacío (o `true`). *Build directory*:
+1. Connect the repo. *Build command*: empty (or `true`). *Build directory*:
    **`web/dist`**.
-2. El push con el dist actualizado publica el sitio.
+2. The push with the updated dist publishes the site.
 
-### La web publicada
+### The published web
 
-- Carga por defecto el bundle `data/simulation.json.gz` del build.
-- Con el botón **↯** (o arrastrando un archivo) puedes cargar **cualquier**
-  otra simulación generada en consola (`--out-file mi-sim.json.gz`) sin tocar
-  el servidor; todo se procesa en el navegador.
+- Loads the default bundle `data/simulation.json.gz` from the build.
+- With the **Load simulation** button (or drag & drop) you can load **any**
+  other simulation generated on the command line (`--out-file mi-sim.json.gz`)
+  without touching the server; everything is processed in the browser.
 
-**Notas de rendimiento y gotchas**
+**Performance notes and gotchas**
 
-- La web carga `data/simulation.json.gz` (bundle único comprimido), un único
-  request de ~4,5 MB. Cloudflare **no comprime JSON** por defecto, por eso se
-  publica el bundle ya en gzip.
-- La detección "JSON directo o gzip" intenta primero `JSON.parse` y solo
-  descomprime si falla, con lo que funciona aunque el CDN sirva el `.gz` ya
-  descomprimido.
-- Las rutas son relativas (`data/`, `js/`, `vendor/`), así que el sitio
-  funciona también bajo un subpath. No hace falta SPA fallback: los deep
-  links usan `#hash`.
-- `DecompressionStream` requiere un navegador moderno (Chrome/Edge 80+,
-  Firefox 113+, Safari 16.4+).
-- El bundle subido por el usuario (botón ↯ / drag&drop) se procesa en el
-  navegador sin tocar el servidor.
+- The web loads `data/simulation.json.gz` (a single compressed bundle), a single
+  request of ~4.5 MB. Cloudflare does **not compress JSON** by default, so the
+  bundle is published already gzipped.
+- The "plain JSON or gzip" detection first tries `JSON.parse` and only
+  decompresses if it fails, so it works even if the CDN serves the `.gz` already
+  decompressed.
+- The paths are relative (`data/`, `js/`, `vendor/`), so the site also works
+  under a subpath. No SPA fallback needed: deep links use `#hash`.
+- `DecompressionStream` requires a modern browser (Chrome/Edge 80+, Firefox
+  113+, Safari 16.4+).
+- The bundle uploaded by the user (Load simulation button / drag & drop) is
+  processed in the browser without touching the server.
 
-## Limitaciones conocidas
+## Known limitations
 
-- El flag `--sql` de `build_snapshots.py` no está cableado al build: la carga a
-  PostgreSQL es un pipeline separado (ver **Persistir y analizar en PostgreSQL**),
-  orquestado por `src/scenarios/refresh_timeline.py`.
-- El margen de llegada mínimo por pasajero es de 45 min; en días
-  descongestionados los retrasos son de pocos minutos y la puntualidad queda
-  cerca del 100%.
+- The `--sql` flag of `build_snapshots.py` is not wired into the build: the
+  PostgreSQL load is a separate pipeline (see **Persisting and analyzing in
+  PostgreSQL**), orchestrated by `src/scenarios/refresh_timeline.py`.
+- The minimum arrival margin per passenger is 45 min; on uncongested days the
+  delays are only a few minutes and punctuality stays near 100%.

@@ -5,18 +5,18 @@ from ...world.airport import Airport
 from ...world.gate import Gate
 
 AIRPORTS_DATA = [
-    ("EZE", "Aeropuerto de Ezeiza"),
-    ("MIA", "Aeropuerto Internacional de Miami"),
+    ("EZE", "Ministro Pistarini International Airport"),
+    ("MIA", "Miami International Airport"),
     ("JFK", "John F. Kennedy International Airport"),
     ("LAX", "Los Angeles International Airport"),
-    ("MAD", "Adolfo Suárez Madrid-Barajas"),
-    ("BCN", "Barcelona-El Prat"),
+    ("MAD", "Adolfo Suarez Madrid-Barajas Airport"),
+    ("BCN", "Barcelona-El Prat Airport"),
     ("CDG", "Charles de Gaulle Airport"),
     ("LHR", "Heathrow Airport"),
-    ("GRU", "Aeroporto Internacional de São Paulo"),
-    ("MEX", "Aeropuerto Internacional de la Ciudad de México"),
-    ("BOG", "Aeropuerto Internacional El Dorado"),
-    ("SCL", "Aeropuerto Internacional de Santiago"),
+    ("GRU", "Sao Paulo/Guarulhos International Airport"),
+    ("MEX", "Mexico City International Airport"),
+    ("BOG", "El Dorado International Airport"),
+    ("SCL", "Santiago International Airport"),
 ]
 
 AIRPORTS = dict(AIRPORTS_DATA)

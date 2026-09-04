@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,23 +9,28 @@
 <body>
   <header class="topbar">
     <h1>Airline Day — Timeline</h1>
-    <div class="sim-time" id="sim-time">--:--</div>
-    <button id="btn-theme" title="Cambiar a modo oscuro" aria-label="Cambiar de modo claro a oscuro">&#9790;</button>
-    <button id="btn-load" title="Cargar una simulación (JSON bundle)" aria-label="Cargar una simulación">&#10514;</button>
+    <button id="btn-load" title="Load a simulation bundle (.json or .json.gz)" aria-label="Load a simulation bundle">
+      <span class="btn-icon">&#10514;</span>
+      <span class="btn-label">Load simulation</span>
+    </button>
+    <div class="topbar-right">
+      <div class="sim-time" id="sim-time">--:--</div>
+      <button id="btn-theme" title="Switch to dark mode" aria-label="Toggle light/dark mode">&#9790;</button>
+      <div class="legend" id="legend"></div>
+    </div>
     <input type="file" id="file-input" accept=".json,.json.gz" hidden />
-    <div class="legend" id="legend"></div>
   </header>
 
   <!-- Timeline: fixed, independent of the tabs -->
   <section class="timeline-panel">
     <div class="controls">
       <div class="transport">
-        <button id="btn-prev" title="Frame anterior" aria-label="Frame anterior">
+        <button id="btn-prev" title="Previous frame" aria-label="Previous frame">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
             <path fill="currentColor" d="M6 5h3v14H6zM20 5 9.5 12 20 19z"/>
           </svg>
         </button>
-        <button id="btn-play" title="Play / Pausa (espacio)" aria-label="Reproducir o pausar">
+        <button id="btn-play" title="Play / Pause (space)" aria-label="Play or pause">
           <svg id="ic-play" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
             <path fill="currentColor" d="M8 5v14l11-7z"/>
           </svg>
@@ -33,7 +38,7 @@
             <path fill="currentColor" d="M7 5h4v14H7zM13 5h4v14h-4z"/>
           </svg>
         </button>
-        <button id="btn-next" title="Frame siguiente" aria-label="Frame siguiente">
+        <button id="btn-next" title="Next frame" aria-label="Next frame">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
             <path fill="currentColor" d="M18 5h-3v14h3zM4 5l10.5 7L4 19z"/>
           </svg>
@@ -54,59 +59,59 @@
 
   <!-- Tabs -->
   <nav class="tabs" id="tabs">
-    <button class="tab active" data-tab="metrics">Métricas</button>
-    <button class="tab" data-tab="airport">Aeropuerto</button>
-    <button class="tab" data-tab="air">Mapa aéreo</button>
-    <button class="tab" data-tab="report">Informe</button>
+    <button class="tab active" data-tab="metrics">Metrics</button>
+    <button class="tab" data-tab="airport">Airport</button>
+    <button class="tab" data-tab="air">Air map</button>
+    <button class="tab" data-tab="report">Report</button>
   </nav>
 
   <main>
-    <!-- TAB: Métricas -->
+    <!-- TAB: Metrics -->
     <section class="tab-content" id="tab-metrics">
       <div class="counters" id="counters"></div>
       <div class="metrics-grid">
         <div class="panel">
-          <h2>Cola de seguridad (por momento)</h2>
+          <h2>Security queue (current)</h2>
           <div class="chart-wrap"><canvas id="security-chart"></canvas></div>
         </div>
         <div class="panel">
-          <h2>Cola de check-in (por momento)</h2>
+          <h2>Check-in queue (current)</h2>
           <div class="chart-wrap"><canvas id="checkin-chart"></canvas></div>
         </div>
         <div class="panel">
-          <h2>Operativo (acumulado)</h2>
+          <h2>Operational (cumulative)</h2>
           <div class="chart-wrap"><canvas id="op-chart"></canvas></div>
         </div>
         <div class="panel">
-          <h2>Experiencia de viaje (acumulado)</h2>
+          <h2>Travel experience (cumulative)</h2>
           <div class="chart-wrap"><canvas id="stress-chart"></canvas></div>
         </div>
       </div>
       <div class="metrics-grid">
         <div class="panel">
-          <h2>Puntualidad por vuelo</h2>
+          <h2>On-time per flight</h2>
           <div class="chart-wrap"><canvas id="flight-chart"></canvas></div>
         </div>
         <div class="panel">
-          <h2>Cohortes por motivo de viaje</h2>
+          <h2>Cohorts by travel purpose</h2>
           <div class="chart-wrap"><canvas id="cohort-chart"></canvas></div>
         </div>
       </div>
       <div class="panel chart-full">
-        <h2>Pasajeros esperando en seguridad (por aeropuerto, a lo largo del día)</h2>
+        <h2>Passengers waiting at security (per airport, over the day)</h2>
         <div class="chart-wrap queue-wrap"><canvas id="security-queue-chart"></canvas></div>
       </div>
       <div class="panel chart-full">
-        <h2>Pasajeros en cola de check-in (por aeropuerto, a lo largo del día)</h2>
+        <h2>Passengers in the check-in queue (per airport, over the day)</h2>
         <div class="chart-wrap queue-wrap"><canvas id="checkin-queue-chart"></canvas></div>
       </div>
     </section>
 
-    <!-- TAB: Aeropuerto (planta sobre el layout real) -->
+    <!-- TAB: Airport (floor plan over the real layout) -->
     <section class="tab-content" id="tab-airport" hidden>
       <div class="panel">
         <div class="airport-top">
-          <label for="airport-select">Aeropuerto</label>
+          <label for="airport-select">Airport</label>
           <select id="airport-select"></select>
           <span class="airport-title" id="airport-title"></span>
           <span class="airport-side" id="airport-side"></span>
@@ -117,21 +122,21 @@
       </div>
     </section>
 
-    <!-- TAB: Mapa aéreo -->
+    <!-- TAB: Air map -->
     <section class="tab-content" id="tab-air" hidden>
       <div class="panel">
-        <h2>Red aérea — vuelos en el aire</h2>
+        <h2>Air network — flights in the air</h2>
         <div id="air-map" class="air-map"></div>
         <div id="air-list" class="air-list"></div>
       </div>
     </section>
 
-    <!-- TAB: Informe operativo -->
+    <!-- TAB: Operational report -->
     <section class="tab-content" id="tab-report" hidden>
       <div class="report-toolbar">
-        <button id="btn-download-md" title="Descargar informe en Markdown">Descargar .md</button>
-        <button id="btn-download-html" title="Descargar informe en HTML">Descargar .html</button>
-        <button id="btn-download-pdf" title="Guardar informe como PDF (abre el diálogo de impresión)">Descargar .pdf</button>
+        <button id="btn-download-md" title="Download report as Markdown">Download .md</button>
+        <button id="btn-download-html" title="Download report as HTML">Download .html</button>
+        <button id="btn-download-pdf" title="Save report as PDF (opens the print dialog)">Download .pdf</button>
       </div>
       <div id="report-body" class="report-body"></div>
     </section>

@@ -72,7 +72,8 @@ body {
 }
 
 .topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 20px;
   padding: 16px 24px;
@@ -86,6 +87,16 @@ body {
   margin: 0;
   color: var(--text);
   letter-spacing: 0px;
+  justify-self: start;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+  justify-self: end;
+  min-width: 0;
 }
 
 .sim-time {
@@ -98,7 +109,32 @@ body {
   padding: 2px 12px;
   border-radius: 8px;
 }
-.legend { margin-left: auto; font-size: 12px; color: var(--muted); letter-spacing: 0px; }
+.legend { font-size: 12px; color: var(--muted); letter-spacing: 0px; text-align: right; white-space: nowrap; }
+
+button#btn-load {
+  display: inline-flex;
+  align-items: center;
+  justify-self: center;
+  gap: 9px;
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.14);
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+button#btn-load .btn-icon { font-size: 17px; line-height: 1; }
+button#btn-load:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25);
+}
 
 #btn-theme {
   background: var(--panel2);
@@ -456,26 +492,10 @@ main { padding: 16px 24px 28px; }
   .metrics-grid { grid-template-columns: 1fr; }
 }
 /* ============================================================
-   Informe operativo (pestaña) y carga de bundles
+   Operational report (tab) and bundle loading
    ============================================================ */
-button#btn-load {
-  min-width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--panel2);
-  color: var(--muted);
-  font-size: 14px;
-  cursor: pointer;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-button#btn-load:hover { color: var(--accent); border-color: var(--accent); }
-
 body.dropping::after {
-  content: "Soltá el bundle aquí";
+  content: "Drop a bundle here";
   position: fixed;
   inset: 0;
   z-index: 90;
@@ -488,6 +508,16 @@ body.dropping::after {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   border: 2px dashed var(--accent);
   pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .legend { display: none; }
+}
+
+@media (max-width: 560px) {
+  .topbar { grid-template-columns: 1fr auto; row-gap: 12px; padding: 12px 16px; }
+  #btn-load { order: 3; grid-column: 1 / -1; justify-self: center; }
+  .topbar-right { grid-column: 2; grid-row: 1 / span 2; }
 }
 
 .report-body { display: flex; flex-direction: column; gap: 16px; }

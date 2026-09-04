@@ -1,4 +1,4 @@
-"""Tests del informe operativo (build_report / render_markdown)."""
+"""Tests of the operational report (build_report / render_markdown)."""
 
 import json
 
@@ -64,8 +64,8 @@ def test_report_markdown_renders_tables():
     md = render_markdown(_report())
 
     assert md.startswith("# ")
-    assert "## Resumen operativo" in md
-    assert "## Colas de seguridad" in md
-    assert "## Vuelos" in md
-    assert "| Vuelo |" in md
-    assert "## Heatmap" in md
+    assert "## Operational summary" in md
+    assert "## Security queues" in md
+    assert "## Flights" in md
+    assert "| Flight |" in md
+    assert "## Average wait heatmap" in md

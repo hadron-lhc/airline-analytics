@@ -1,10 +1,10 @@
-"""Construye el informe operativo de una simulación aérea.
+"""Builds the operational report of an airline simulation.
 
-build_report() agrega métricas (ya calculadas por el tracker del build web)
-junto con datos del mundo y de los eventos en un dict JSON-serializable.
-render_markdown() produce un informe legible en terminal.
+build_report() aggregates metrics (already computed by the web build tracker)
+together with world and event data into a JSON-serializable dict.
+render_markdown() produces a terminal-readable report.
 
-Uso desde web/build_snapshots.py:
+Usage from web/build_snapshots.py:
     report = build_report(meta, final_metrics, world, result)
     markdown = render_markdown(report)
 """
@@ -15,7 +15,7 @@ from datetime import datetime
 
 from ..enums.simulation_enums import EventType
 
-# Umbral (min) por el que un vuelo sigue considerándose puntual.
+# Threshold (min) below which a flight is still considered on time.
 ON_TIME_THRESHOLD_MIN = 15
 
 
@@ -31,7 +31,7 @@ def _avg(values: list[float]) -> float:
 
 
 def _baggage_and_stow(result) -> dict:
-    """Promedios de espera de maletas y tiempo de stow desde los eventos."""
+    """Average baggage wait and stow time from the events."""
     baggage_waits: list[float] = []
     stow_times: list[float] = []
 
@@ -54,7 +54,7 @@ def _baggage_and_stow(result) -> dict:
 
 
 def _peak_hour(airport: dict) -> str | None:
-    """Hora del día con espera media máxima en un aeropuerto."""
+    """Hour of the day with the maximum average wait at an airport."""
     hours = airport.get("hours") or {}
     if not hours:
         return None
@@ -65,7 +65,7 @@ def _peak_hour(airport: dict) -> str | None:
 
 
 def build_report(meta: dict, metrics: dict, world, result) -> dict:
-    """Arma el informe completo (dict serializable a JSON)."""
+    """Builds the full report (dict serializable to JSON)."""
     final = metrics
     operational = final.get("operational", {})
     stress = final.get("stress", {})
@@ -97,7 +97,7 @@ def build_report(meta: dict, metrics: dict, world, result) -> dict:
         rows.sort(key=lambda r: -_scalar(r["wait_p90_s"]))
         return rows
 
-    # Tabla de vuelos ordenada por hora de salida.
+    # Flight table sorted by departure time.
     flights = []
     for fn, f in (operational.get("flight") or {}).items():
         flights.append(
@@ -199,7 +199,7 @@ def build_report(meta: dict, metrics: dict, world, result) -> dict:
 
 
 def _fmt_queue_rows(rows: list[dict]) -> str:
-    lines = ["| Aeropuerto | Procesados | Espera media | P90 | Máx | Congestión | Hora pico |"]
+    lines = ["| Airport | Processed | Avg wait | P90 | Max | Congested | Peak hour |"]
     lines.append("|---|---|---:|---:|---:|---:|---|")
     for r in rows:
         lines.append(
@@ -212,21 +212,21 @@ def _fmt_queue_rows(rows: list[dict]) -> str:
 
 
 def _fmt_flight_rows(flights: list[dict]) -> str:
-    lines = ["| Vuelo | Ruta | Salida | Llegada | Capac. | Load | Embarcados | Perdidos | Puntual | Retraso |"]
+    lines = ["| Flight | Route | Dep | Arr | Cap. | Load | Boarded | Missed | On-time | Delay |"]
     lines.append("|---|---|---|---|---:|---:|---:|---:|:---:|---:|")
     for f in flights:
         lines.append(
             f"| {f['flight']} | {f['origin']}→{f['destination']} "
             f"| {f['dep']} | {f['sched_arr']} | {f['capacity']} "
             f"| {f['load_factor']:.0f}% | {f['boarded']} | {f['missed']} "
-            f"| {'Sí' if f['on_time'] else 'No'} | {f['delay_min']:.0f}m |"
+            f"| {'Yes' if f['on_time'] else 'No'} | {f['delay_min']:.0f}m |"
         )
     return "\n".join(lines)
 
 
 def _fmt_heatmap(data: dict) -> str:
     if not data:
-        return "_sin datos_"
+        return "_no data_"
     airports = list(data)
     hours = sorted({h for rows in data.values() for h, _ in rows})
     header = "".join(f"{h:>5}" for h in hours)
@@ -249,58 +249,58 @@ def render_markdown(report: dict) -> str:
     lines.append(f"# {meta['title']}")
     lines.append("")
     lines.append(
-        f"**Fecha:** {meta['date']}  ·  **Ventana:** {meta['start']}–{meta['end']}  "
-        f"·  **Pasajeros:** {meta['passengers']:,}  ·  **Vuelos:** {meta['flights']}  "
-        f"·  **Aeropuertos:** {len(meta['airports'])}  ·  **Eventos:** {meta['events']:,}"
+        f"**Date:** {meta['date']}  ·  **Window:** {meta['start']}–{meta['end']}  "
+        f"·  **Passengers:** {meta['passengers']:,}  ·  **Flights:** {meta['flights']}  "
+        f"·  **Airports:** {len(meta['airports'])}  ·  **Events:** {meta['events']:,}"
     )
     lines.append("")
 
-    lines.append("## Resumen operativo")
+    lines.append("## Operational summary")
     lines.append("")
     lines.append(
-        f"- **Embarcados:** {res['boarded']:,} ({res['completed_pct']:.0f}% "
-        f"completaron el ciclo) · **Perdidos:** {res['missed']:,} "
+        f"- **Boarded:** {res['boarded']:,} ({res['completed_pct']:.0f}% "
+        f"completed the cycle) · **Missed:** {res['missed']:,} "
         f"({res['missed_rate'] * 100:.1f}%)"
     )
     lines.append(
-        f"- **Tiempo medio de origen a puerta:** {res['avg_origin_min']:.0f} min "
-        f"· **Puntualidad:** {res['on_time_rate']:.0f}% "
-        f"· **Retraso medio:** {res['avg_delay_min']:.1f} min "
-        f"· **Load factor medio:** {res['load_factor_avg']:.0f}%"
+        f"- **Avg origin-to-gate time:** {res['avg_origin_min']:.0f} min "
+        f"· **On-time:** {res['on_time_rate']:.0f}% "
+        f"· **Avg delay:** {res['avg_delay_min']:.1f} min "
+        f"· **Avg load factor:** {res['load_factor_avg']:.0f}%"
     )
     lines.append(
-        f"- **Estrés de embarque medio:** {res['boarding_avg_stress']:.0f} "
-        f"· **Pasajeros con alta presión:** {res['high_pressure_pct']:.0f}%"
+        f"- **Avg boarding stress:** {res['boarding_avg_stress']:.0f} "
+        f"· **Passengers under high pressure:** {res['high_pressure_pct']:.0f}%"
     )
     lines.append("")
 
-    lines.append("## Colas de seguridad")
+    lines.append("## Security queues")
     lines.append("")
     lines.append(_fmt_queue_rows(report["colas"]["security"]))
     lines.append("")
 
-    lines.append("## Colas de check-in")
+    lines.append("## Check-in queues")
     lines.append("")
     lines.append(_fmt_queue_rows(report["colas"]["checkin"]))
     lines.append("")
 
-    lines.append("## Experiencia")
+    lines.append("## Experience")
     lines.append("")
     lines.append(
-        f"- **Estrés medio en embarque:** {exp.get('boarding_avg', 0.0):.0f} "
-        f"· **estresados:** {exp.get('boarding_stressed_pct', 0.0):.0f}%"
+        f"- **Avg boarding stress:** {exp.get('boarding_avg', 0.0):.0f} "
+        f"· **stressed:** {exp.get('boarding_stressed_pct', 0.0):.0f}%"
     )
     lines.append(
-        f"- **Espera de maletas media:** {exp.get('avg_baggage_wait_s', 0.0):.0f} s "
-        f"(pasajeros con facturar: {exp.get('checked_passengers', 0):,}) "
-        f"· **Stow medio al embarcar:** {exp.get('avg_stow_s', 0.0):.0f} s"
+        f"- **Avg baggage wait:** {exp.get('avg_baggage_wait_s', 0.0):.0f} s "
+        f"(passengers with checked bags: {exp.get('checked_passengers', 0):,}) "
+        f"· **Avg stow at boarding:** {exp.get('avg_stow_s', 0.0):.0f} s"
     )
     lines.append("")
 
     if report["cohortes"]:
-        lines.append("## Cohortes por motivo de viaje")
+        lines.append("## Cohorts by travel purpose")
         lines.append("")
-        lines.append("| Motivo | Embarcados | Perdidos | Miss rate | Espera media | Estrés |")
+        lines.append("| Purpose | Boarded | Missed | Miss rate | Avg wait | Stress |")
         lines.append("|---|---:|---:|---:|---:|---:|")
         for c in report["cohortes"]:
             lines.append(
@@ -310,14 +310,14 @@ def render_markdown(report: dict) -> str:
             )
         lines.append("")
 
-    lines.append(f"## Vuelos ({len(report['vuelos'])} operados)")
+    lines.append(f"## Flights ({len(report['vuelos'])} operated)")
     lines.append("")
     lines.append(_fmt_flight_rows(report["vuelos"]))
     lines.append("")
 
-    lines.append("## Heatmap de espera por aeropuerto y hora (promedio segundos)")
+    lines.append("## Average wait heatmap by airport and hour (seconds)")
     lines.append("")
-    lines.append("### Seguridad")
+    lines.append("### Security")
     lines.append("")
     lines.append(_fmt_heatmap(report["heatmap"]["security"]))
     lines.append("")

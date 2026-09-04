@@ -731,7 +731,7 @@ def build_meta(world, result, airport_names: dict, title: str | None = None) -> 
     if title is None:
         origins = {f.origin_airport.iata_code for f in world.flights}
         title = (
-            "Airline Day — red multi-aeropuerto"
+            "Airline Day — multi-airport network"
             if len(origins) > 1
             else "Airline Day — hub"
         )
