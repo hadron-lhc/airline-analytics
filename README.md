@@ -11,16 +11,14 @@ fixed seeds.
 
 **https://airline-analytics.valentingonzalezdaumes.workers.dev/**
 
-## Demo videos
-
-Short screen recordings of the web view. Click a thumbnail to play the clip:
+## Screenshots
 
 | | |
 |---|---|
 | **Metrics** — counters, security/check-in queues, experience, punctuality and cohorts | **Airport** — floor plan with zones and travelers per zone |
-| [![Metrics](images/metrics.png)](images/video_metrics.mp4) | [![Airport](images/airport.png)](images/video_airport.mp4) |
+| ![Metrics](images/metrics.png) | ![Airport](images/airport.png) |
 | **Air map** — flights in the air and list | |
-| [![Air map](images/airmap.png)](images/video_air_map.mp4) | |
+| ![Air map](images/airmap.png) | |
 
 ## Structure
 
