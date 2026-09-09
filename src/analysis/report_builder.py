@@ -269,8 +269,8 @@ def render_markdown(report: dict) -> str:
         f"· **Avg load factor:** {res['load_factor_avg']:.0f}%"
     )
     lines.append(
-        f"- **Avg boarding stress:** {res['boarding_avg_stress']:.0f} "
-        f"· **Passengers under high pressure:** {res['high_pressure_pct']:.0f}%"
+        f"- **Avg boarding stress:** {res['boarding_avg_stress']:.2f} (0-1) "
+        f"· **Passengers under high pressure:** {res['high_pressure_pct']:.1f}%"
     )
     lines.append("")
 
@@ -287,8 +287,8 @@ def render_markdown(report: dict) -> str:
     lines.append("## Experience")
     lines.append("")
     lines.append(
-        f"- **Avg boarding stress:** {exp.get('boarding_avg', 0.0):.0f} "
-        f"· **stressed:** {exp.get('boarding_stressed_pct', 0.0):.0f}%"
+        f"- **Avg boarding stress:** {exp.get('boarding_avg', 0.0):.2f} (0-1)"
+        f" · **stressed:** {exp.get('boarding_stressed_pct', 0.0):.1f}%"
     )
     lines.append(
         f"- **Avg baggage wait:** {exp.get('avg_baggage_wait_s', 0.0):.0f} s "
@@ -306,7 +306,7 @@ def render_markdown(report: dict) -> str:
             lines.append(
                 f"| {c['purpose']} | {c['boarded']} | {c['missed']} "
                 f"| {c['missed_rate'] * 100:.1f}% | {c['avg_wait']:.0f}s "
-                f"| {c['avg_stress']:.0f} |"
+                f"| {c['avg_stress']:.2f} |"
             )
         lines.append("")
 

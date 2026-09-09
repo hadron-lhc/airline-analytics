@@ -11,7 +11,7 @@ class QueueServiceModel:
     Model the amount of time a passenger occupies a service point.
     """
 
-    base_service_time: float = 45.0
+    base_service_time: float = 130.0
     random_variation: float = 0.15
 
     def calculate_security_time(

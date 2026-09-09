@@ -19,6 +19,8 @@ class SecurityQueueResult:
 
     congested: bool
 
+    capacity: int
+
 
 @dataclass(slots=True)
 class SecurityQueue:
@@ -250,4 +252,5 @@ class SecurityQueue:
             queue_length=queue_length,
             occupancy=occupancy,
             congested=congested,
+            capacity=self.capacity,
         )

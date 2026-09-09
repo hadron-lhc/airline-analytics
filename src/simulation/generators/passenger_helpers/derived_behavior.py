@@ -9,10 +9,10 @@ def generate_arrival_margin(
     stress_resilience: float,
 ) -> int:
     base_margin = {
-        TravelPurpose.BUSINESS: 75,
-        TravelPurpose.LEISURE: 180,
-        TravelPurpose.FAMILY: 210,
-        TravelPurpose.VISITING: 125,
+        TravelPurpose.BUSINESS: 45,
+        TravelPurpose.LEISURE: 110,
+        TravelPurpose.FAMILY: 130,
+        TravelPurpose.VISITING: 80,
     }[travel_purpose]
 
     experience_effect = (5 - travel_experience) * 5

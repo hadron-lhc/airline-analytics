@@ -30,7 +30,7 @@ _BUFFER_SECONDS = 20 * 60
 _PEAK_HOURS_START = {6, 7, 8, 9, 10, 16, 17, 18, 19, 20}
 _NIGHT_HOURS = {0, 1, 2, 3, 4, 22, 23}
 
-_SECURITY_PROFILE = {"peak": (6, 28), "off": (4, 20), "night": (2, 10)}
+_SECURITY_PROFILE = {"peak": (4, 18), "off": (3, 12), "night": (2, 6)}
 _CHECKIN_PROFILE = {"peak": (5, 24), "off": (3, 18), "night": (2, 8)}
 
 

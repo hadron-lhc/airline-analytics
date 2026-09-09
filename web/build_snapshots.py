@@ -21,6 +21,7 @@ import hashlib
 import json
 import math
 import os
+import random
 import shutil
 import sys
 import uuid
@@ -33,7 +34,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from src.enums.simulation_enums import EventType
-from src.enums.world_enums import PassengerState
+from src.enums.world_enums import FlightMilestone, PassengerState
 from src.analysis.report_builder import build_report, render_markdown
 from src.loaders.airport_layout_loader import load_airport_layout
 STATIC_DIR = WEB_DIR / "static"
@@ -562,7 +563,7 @@ class _MetricsTracker:
             if boarding_stress
             else 0.0
         )
-        stressed = sum(1 for s in boarding_stress if s > 0.6)
+        stressed = sum(1 for s in boarding_stress if s > 0.45)
 
         cohorts_out = {}
         for purpose, c in self._cohorts.items():
@@ -599,11 +600,13 @@ class _MetricsTracker:
             "stress": {
                 "boarding_avg": round(boarding_avg, 1),
                 "boarding_stressed_pct": round(
-                    (stressed / len(boarding_stress)) if boarding_stress else 0.0,
+                    (stressed / len(boarding_stress)) * 100.0
+                    if boarding_stress
+                    else 0.0,
                     1,
                 ),
                 "high_pressure_pct": round(
-                    (self.high_pressure / self.waited_total)
+                    (self.high_pressure / self.waited_total) * 100.0
                     if self.waited_total
                     else 0.0,
                     1,
@@ -637,6 +640,8 @@ def build_flight_statuses(world) -> dict:
             "on_board": f.passenger_count,
             "dep": f.scheduled_departure.strftime("%H:%M"),
             "arr": f.scheduled_arrival.strftime("%H:%M"),
+            "takeoff": f.get_milestone(FlightMilestone.TAKE_OFF).strftime("%H:%M"),
+            "landing": f.get_milestone(FlightMilestone.LANDED).strftime("%H:%M"),
         }
         for f in world.flights
     }
@@ -824,6 +829,9 @@ def run(
     out_file: str | None = None,
     report: bool = True,
 ) -> int:
+    if seed is not None:
+        random.seed(seed)
+
     if full_day:
         from src.simulation.world_factory import generate_world
 

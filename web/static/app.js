@@ -309,7 +309,7 @@
       rows.forEach((c) => {
         out += `| ${escMd(c.purpose)} | ${c.boarded || 0} | ${c.missed || 0} | ` +
           `${pctInt((c.missed_rate || 0) * 100)} | ${Math.round(c.avg_wait || 0)}s | ` +
-          `${Math.round(c.avg_stress || 0)} |\n`;
+          `${Math.round((c.avg_stress || 0) * 100)} |\n`;
       });
       return out;
     };
@@ -622,7 +622,7 @@
         r.cohortes.map((c) =>
           `<tr><td>${esc(c.purpose)}</td><td>${c.boarded || 0}</td><td>${c.missed || 0}</td>` +
           `<td>${pct((c.missed_rate || 0) * 100)}</td><td>${Math.round(c.avg_wait || 0)}s</td>` +
-          `<td>${Math.round(c.avg_stress || 0)}</td></tr>`).join("") + `</tbody></table></section>`;
+          `<td>${Math.round((c.avg_stress || 0) * 100)}</td></tr>`).join("") + `</tbody></table></section>`;
     }
 
     if (r.vuelos && r.vuelos.length) {
@@ -895,7 +895,7 @@
     const st = (snap.metrics && snap.metrics.stress) || {};
     const labels = ["Avg boarding\nstress", "…stressed", "Waits with\nhigh pressure"];
     const data = [
-      st.boarding_avg || 0,
+      Math.round((st.boarding_avg || 0) * 100),
       st.boarding_stressed_pct || 0,
       st.high_pressure_pct || 0,
     ];
@@ -919,7 +919,7 @@
           },
         },
         scales: {
-          y: { beginAtZero: true, title: { display: true, text: "avg / %", color: T.title }, ticks: { color: T.tick } },
+          y: { beginAtZero: true, title: { display: true, text: "value (0-100)", color: T.title }, ticks: { color: T.tick } },
           x: { ticks: { color: T.tick, fontSize: 11 } },
         },
       },
@@ -968,7 +968,7 @@
       return;
     }
     const missedRate = labels.map((c) => (cohorts[c].missed_rate || 0) * 100);
-    const avgStress = labels.map((c) => cohorts[c].avg_stress || 0);
+    const avgStress = labels.map((c) => Math.round((cohorts[c].avg_stress || 0) * 100));
     if (cohortChart) cohortChart.destroy();
     const ctx = $("cohort-chart").getContext("2d");
     cohortChart = new Chart(ctx, {
@@ -986,7 +986,7 @@
         scales: {
           x: { ticks: { color: T.tick } },
           y: { position: "left", min: 0, max: 100, title: { display: true, text: "%", color: T.title }, ticks: { color: T.tick } },
-          y1: { position: "right", min: 0, max: 100, title: { display: true, text: "stress", color: T.title }, grid: { drawOnChartArea: false }, ticks: { color: T.tick } },
+          y1: { position: "right", min: 0, max: 100, title: { display: true, text: "stress (0-100)", color: T.title }, grid: { drawOnChartArea: false }, ticks: { color: T.tick } },
         },
       },
     });
@@ -1012,7 +1012,7 @@
           legend: { labels: { color: T.tick } },
           title: {
             display: true,
-            text: `Boarded ${boarded} · Missed ${missed} · ${completed} in origin · avg ${avg} min at airport`,
+            text: `Boarded ${boarded} · Missed ${missed} · ${completed} completed origin · avg ${avg} min origin→gate`,
             color: T.tick,
           },
         },
@@ -1234,8 +1234,10 @@
       const to = AIRPORT_POS[f.to];
       if (!from || !to) return;
       const dep = toMinutes(f.dep), arr = toMinutes(f.arr);
+      const depT = f.takeoff ? toMinutes(f.takeoff) : dep;
+      const arrT = f.landing ? toMinutes(f.landing) : arr;
       let frac = 0;
-      if (arr > dep) frac = Math.min(1, Math.max(0, (tMin - dep) / (arr - dep)));
+      if (arrT > depT) frac = Math.min(1, Math.max(0, (tMin - depT) / (arrT - depT)));
       const active = f.status === "Departed";
       if (f.status === "Scheduled" || f.status === "Boarding") frac = 0;
       const key = f.from + "|" + f.to;

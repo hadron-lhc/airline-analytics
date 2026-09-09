@@ -120,11 +120,11 @@ def test_landed_shifted_with_takeoff():
 def test_staffing_profile_by_hour():
     from src.simulation.simulation_runner import _SECURITY_PROFILE
 
-    assert _staffing_for(datetime(2026, 7, 13, 7, 0), _SECURITY_PROFILE) == (6, 28)
-    assert _staffing_for(datetime(2026, 7, 13, 17, 0), _SECURITY_PROFILE) == (6, 28)
-    assert _staffing_for(datetime(2026, 7, 13, 12, 0), _SECURITY_PROFILE) == (4, 20)
-    assert _staffing_for(datetime(2026, 7, 13, 2, 0), _SECURITY_PROFILE) == (2, 10)
-    assert _staffing_for(datetime(2026, 7, 13, 23, 0), _SECURITY_PROFILE) == (2, 10)
+    assert _staffing_for(datetime(2026, 7, 13, 7, 0), _SECURITY_PROFILE) == (4, 18)
+    assert _staffing_for(datetime(2026, 7, 13, 17, 0), _SECURITY_PROFILE) == (4, 18)
+    assert _staffing_for(datetime(2026, 7, 13, 12, 0), _SECURITY_PROFILE) == (3, 12)
+    assert _staffing_for(datetime(2026, 7, 13, 2, 0), _SECURITY_PROFILE) == (2, 6)
+    assert _staffing_for(datetime(2026, 7, 13, 23, 0), _SECURITY_PROFILE) == (2, 6)
 
 
 def test_staffing_peak_uses_more_security_points():

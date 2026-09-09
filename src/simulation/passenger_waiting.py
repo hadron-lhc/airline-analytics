@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from ..world.passenger import Passenger
 from ..world.models.stress_model import StressModel
+from ..enums.world_enums import StressEvent
 
 
 @dataclass(slots=True)
@@ -49,6 +50,13 @@ class PassengerWaitingSimulator:
             stress_resilience=passenger.traits.stress_resilience,
             time_pressure=time_pressure,
         )
+
+        if time_pressure > 0.3:
+            final_stress = self.stress_model.apply_event(
+                current_stress=final_stress,
+                event=StressEvent.TIME_PRESSURE,
+                stress_resilience=passenger.traits.stress_resilience,
+            )
 
         passenger.current_stress = final_stress
 

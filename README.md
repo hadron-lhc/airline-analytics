@@ -11,6 +11,17 @@ fixed seeds.
 
 **https://airline-analytics.valentingonzalezdaumes.workers.dev/**
 
+## Demo videos
+
+Short screen recordings of the web view, one per tab:
+
+| | |
+|---|---|
+| **Metrics** — counters, security/check-in queues, experience, punctuality and cohorts | **Airport** — floor plan with zones and travelers per zone |
+| <video src="images/video_metrics.webm" controls width="380"></video> | <video src="images/video_airport.webm" controls width="380"></video> |
+| **Air map** — flights in the air and list | **Report** — day's operational summary |
+| <video src="images/video_air_map.webm" controls width="380"></video> | <video src="images/video_report.webm" controls width="380"></video> |
+
 ## Structure
 
 ```
@@ -278,5 +289,6 @@ host.
 - The `--sql` flag of `build_snapshots.py` is not wired into the build: the
   PostgreSQL load is a separate pipeline (see **Persisting and analyzing in
   PostgreSQL**), orchestrated by `src/scenarios/refresh_timeline.py`.
-- The minimum arrival margin per passenger is 45 min; on uncongested days the
-  delays are only a few minutes and punctuality stays near 100%.
+- The minimum arrival margin per passenger is 45 min (business travelers cut it
+  close; leisure/family keep 110-130 min). Congestion at peak waves can now form
+  real security queues, which is what drives stress, pressure and delays.

@@ -165,10 +165,15 @@ centradas, invertir el tiempo en el motor reactivo.
 ### B2. Densidad: bancos de vuelos y turnos (lo que "revuelve" el agua)
 - Hoy las salidas son parejas (hora aleatoria 5-22, `world_factory.py:49-50`).
 - Propuesta: **ondas de vuelos** por la mañana (06-09) y tarde (17-20), como un hub real.
-- Juntar con **staffing de seguridad variable por turno**: hoy `capacity=20` y
-  `service_points=4` son constantes (`security_queue.py:53-54`) y nunca se rechaza por
+- Juntar con **staffing de seguridad variable por turno**: antes `capacity=20` y
+  `service_points=4` eran constantes (`security_queue.py:53-54`) y nunca se rechazaba por
   capacidad. Hacer la capacidad dependiente de la hora → aparecen picos de cola reales,
   y `security_capacity` deja de estar `None` en los eventos (`passenger_journey.py:264-288`).
+  - ✅ **Hecho**: el perfil por turno ya emite `security_capacity`/`occupancy` reales
+    (`SecurityQueueResult.capacity`, `security_queue.py:22`); perfil actual en
+    `simulation_runner.py:33` → `{"peak": (4, 18), "off": (3, 12), "night": (2, 6)}`
+    con `base_service_time=130` (`queue_service_model.py:14`); la web y `hub_day_simulation`
+    muestran la cola por hora (`in_queue` con forma de curva).
 
 Esto convierte la métrica `in_queue` en una curva con forma (el santo grial visual).
 
@@ -214,7 +219,7 @@ La pestaña "Métricas" ya pasa de 4 widgets a 8 paneles (acumula en una sola pa
   aeropuerto (barra por momento) y pasajeros en cola por aeropuerto a lo largo del día
   (línea). La de check-in reutiliza `ARRIVE_CHECK_IN`/`CHECK_IN_COMPLETED` (A1).
 - **Operativo** (doughnut): embarcados vs perdidos, completados, prom min en aeropuerto.
-- **Experiencia / SLA**: estrés promedio al embarque, % estresados (>60) y % de esperas
+- **Experiencia / SLA**: estrés promedio al embarque, % estresados (>0.45) y % de esperas
   con presión de tiempo alta (`time_pressure`).
 - **Puntualidad por vuelo**: embarcados vs perdidos por vuelo (`operational.flight`).
 - **Cohortes por motivo**: missed-rate, espera media y estrés medio por Business /

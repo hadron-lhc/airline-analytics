@@ -272,9 +272,10 @@ aeropuerto de destino, y se añade un escenario hub para analizar saturación.
 
 **Conclusión:** el modelo sí reproduce la pérdida de vuelos por saturación,
 pero depende críticamente del **margen de llegada**. El generador por defecto
-asigna márgenes amplios (≥45 min, típicamente 90–180 min), y el cierre de
-embarque (15 min antes de la salida) queda holgado: incluso con colas de
-seguridad de media hora nadie pierde el vuelo. Solo cuando el margen es corto
+asigna márgenes amplios (≥45 min, típicamente 45–130 min), y el cierre de
+embarque (15 min antes de la salida) queda holgado para quienes llegan con
+margen largo. Solo cuando la cola de seguridad congestiona de verdad (ondas de
+mañana y tarde en hubs) quedan apretados. Cuando el margen es corto
 (`--margen 30`) y todos los aviones salen a la vez, la cola explota y el
 99% pierde el vuelo — quedándose en el aeropuerto de origen (correcto: ningún
 `EXIT_AIRPORT` para los que no embarcaron).

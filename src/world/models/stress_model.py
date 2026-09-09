@@ -98,11 +98,15 @@ class StressModel:
 
         # Time pressure increases stress proportionally to wait duration.
         stress_increase = 0.0
-        if time_pressure > 0.3:
-            stress_increase += 0.008 * duration_minutes * time_pressure
+        if time_pressure > 0.1:
+            stress_increase += 0.02 * duration_minutes * time_pressure
 
         # Under extreme pressure, stress rises faster.
         if time_pressure > 0.8:
-            stress_increase += 0.015 * duration_minutes * (time_pressure - 0.8) * 5.0
+            stress_increase += 0.03 * duration_minutes * (time_pressure - 0.8) * 5.0
 
-        return self._clamp(current_stress - recovery + stress_increase)
+        # Queue friction: standing in line is mildly draining even when the
+        # wait is comfortable (far below recovery, so calm waits still relax).
+        queue_friction = 0.004 * duration_minutes
+
+        return self._clamp(current_stress - recovery + stress_increase + queue_friction)
