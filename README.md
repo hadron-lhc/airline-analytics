@@ -13,14 +13,14 @@ fixed seeds.
 
 ## Demo videos
 
-Short screen recordings of the web view, one per tab:
+Short screen recordings of the web view. Click a thumbnail to play the clip:
 
 | | |
 |---|---|
 | **Metrics** — counters, security/check-in queues, experience, punctuality and cohorts | **Airport** — floor plan with zones and travelers per zone |
-| <video src="images/video_metrics.webm" controls width="380"></video> | <video src="images/video_airport.webm" controls width="380"></video> |
-| **Air map** — flights in the air and list | **Report** — day's operational summary |
-| <video src="images/video_air_map.webm" controls width="380"></video> | <video src="images/video_report.webm" controls width="380"></video> |
+| [![Metrics](images/metrics.png)](images/video_metrics.mp4) | [![Airport](images/airport.png)](images/video_airport.mp4) |
+| **Air map** — flights in the air and list | |
+| [![Air map](images/airmap.png)](images/video_air_map.mp4) | |
 
 ## Structure
 
